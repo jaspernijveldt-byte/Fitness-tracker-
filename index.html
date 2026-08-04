@@ -64,6 +64,7 @@
     --ease-out:cubic-bezier(0.23,1,0.32,1);
     --ease-in-out:cubic-bezier(0.77,0,0.175,1);
     --font-mono:'JetBrains Mono',ui-monospace,monospace;
+    color-scheme: dark;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);}
@@ -152,6 +153,7 @@
   .suggestion.up{background:rgba(168,217,74,0.10);border:1px solid rgba(168,217,74,0.4);color:var(--accent);}
   .suggestion.hold{background:rgba(255,122,69,0.08);border:1px solid rgba(255,122,69,0.35);color:var(--warn);}
   .suggestion.none{background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);}
+  .technique-tip{display:inline-block;margin-top:4px;opacity:0.75;}
 
   table.log-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;}
   table.log-table th{text-align:left;color:var(--text-dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;padding:4px 6px;border-bottom:1px solid var(--border);}
@@ -160,7 +162,10 @@
   table.log-table tbody tr:nth-child(even) td{background:var(--surface-2);}
   table.log-table tbody tr:first-child td{border-radius:6px 6px 0 0;}
   table.log-table tbody tr:last-child td{border-radius:0 0 6px 6px;}
-  .pr-badge{background:var(--accent);color:#14151a;font-size:10px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:6px;font-family:'Inter',sans-serif;}
+  .weight-pr{color:var(--accent);font-weight:700;}
+  .row-del-cell{width:1%;text-align:right;padding-right:2px !important;}
+  .row-del{padding:2px 7px;font-size:14px;line-height:1;color:var(--text-dim);border-color:transparent;background:transparent;}
+  .row-del:hover{color:var(--warn);border-color:var(--warn);background:rgba(255,122,69,0.08);}
 
   canvas.chart{margin-top:14px;max-height:180px;}
 
@@ -202,6 +207,30 @@
   .settings-row{display:none;gap:8px;margin-top:8px;}
   .settings-row.open{display:flex;flex-wrap:wrap;}
 
+  .top-tip{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-left:3px solid var(--accent);
+    border-radius:8px;
+    padding:10px 14px;
+    margin-bottom:16px;
+    font-size:13px;
+    color:var(--text);
+    line-height:1.4;
+  }
+  .top-tip-label{
+    font-family:'Barlow Condensed',sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    font-size:11px;
+    color:var(--accent);
+    font-weight:700;
+    flex-shrink:0;
+  }
+
   .add-exercise{
     background:var(--surface);
     border:1px dashed var(--border);
@@ -232,6 +261,11 @@
   <div id="status"></div>
 </header>
 
+<div id="top-tip" class="top-tip" style="display:none;">
+  <span class="top-tip-label">Focus</span>
+  <span id="top-tip-text"></span>
+</div>
+
 <div id="list"></div>
 
 <div class="add-exercise">
@@ -249,6 +283,10 @@
       <label>Stap (kg)</label>
       <input id="new-ex-increment" type="number" step="0.5" value="2.5">
     </div>
+    <div class="field">
+      <label>Spiergroep (optioneel)</label>
+      <input id="new-ex-muscle" placeholder="bv. hamstrings">
+    </div>
   </div>
   <div class="actions">
     <button class="primary" id="add-ex-btn">Toevoegen</button>
@@ -261,20 +299,55 @@
   const STORAGE_KEY_LOGS = 'basicfit-logs-v1';
 
   const seedExercises = [
-    {id:'seated-dip', name:'Seated dip', machine:'52', increment:2.5, targetReps:12, targetSets:3},
-    {id:'back-extension', name:'Back extension', machine:'43', increment:2.5, targetReps:12, targetSets:3},
-    {id:'fly', name:'Fly', machine:'', increment:2.5, targetReps:12, targetSets:3},
-    {id:'shoulder-press', name:'Shoulder press', machine:'', increment:2.5, targetReps:12, targetSets:3},
-    {id:'abdominal-crunch', name:'Abdominal crunch', machine:'', increment:2.5, targetReps:12, targetSets:3},
-    {id:'perfect-squat', name:'Perfect squat', machine:'', increment:2.5, targetReps:12, targetSets:3},
-    {id:'leg-extension', name:'Leg extension', machine:'', increment:2.5, targetReps:12, targetSets:3},
-    {id:'leg-press', name:'Leg press', machine:'53', increment:5, targetReps:12, targetSets:3},
-    {id:'diverging-lat-pulldown', name:'Diverging lat pulldown', machine:'', increment:2.5, targetReps:12, targetSets:3},
-    {id:'chest-press', name:'Chest press', machine:'', increment:2.5, targetReps:12, targetSets:3},
-    {id:'lateral-raise', name:'Lateral raise', machine:'', increment:2.5, targetReps:12, targetSets:3},
-    {id:'squat', name:'Squat', machine:'', increment:2.5, targetReps:12, targetSets:3},
-    {id:'lat-pulldown', name:'Lat pulldown', machine:'', increment:2.5, targetReps:12, targetSets:3},
-    {id:'cable-fly', name:'Cable fly', machine:'', increment:2.5, targetReps:12, targetSets:3},
+    {id:'seated-dip', name:'Seated dip', machine:'52', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'triceps/borst'},
+    {id:'back-extension', name:'Back extension', machine:'43', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'onderrug'},
+    {id:'fly', name:'Fly', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'borst'},
+    {id:'shoulder-press', name:'Shoulder press', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'schouders'},
+    {id:'abdominal-crunch', name:'Abdominal crunch', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'buik'},
+    {id:'perfect-squat', name:'Perfect squat', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'quadriceps'},
+    {id:'leg-extension', name:'Leg extension', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'quadriceps'},
+    {id:'leg-press', name:'Leg press', machine:'53', increment:5, targetReps:8, targetSets:3, muscleGroup:'quadriceps/bilspieren'},
+    {id:'diverging-lat-pulldown', name:'Diverging lat pulldown', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'rug'},
+    {id:'chest-press', name:'Chest press', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'borst'},
+    {id:'lateral-raise', name:'Lateral raise', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'schouders'},
+    {id:'squat', name:'Squat', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'quadriceps'},
+    {id:'lat-pulldown', name:'Lat pulldown', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'rug'},
+    {id:'cable-fly', name:'Cable fly', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'borst'},
+    {id:'leg-curl', name:'Leg curl', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'hamstrings'},
+    {id:'calf-raise', name:'Calf raise', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'kuiten'},
+  ];
+
+  // id -> muscleGroup, gebruikt om ontbrekende tags in bestaande (al opgeslagen) data aan te vullen
+  const muscleGroupById = {};
+  seedExercises.forEach(e => { muscleGroupById[e.id] = e.muscleGroup; });
+
+  // Eén korte, oefeningspecifieke uitvoeringscue (geen volledige les, gewoon het
+  // belangrijkste aandachtspunt) — zodat de suggestiebox niet bij elke oefening
+  // hetzelfde generieke zinnetje toont.
+  const techniqueTips = {
+    'seated-dip': 'Buig niet te ver naar voren; romp rechtop houden voor triceps-focus.',
+    'back-extension': 'Gecontroleerd bewegen, niet doorzwiepen; strek de heup niet voorbij een rechte lijn.',
+    'fly': 'Lichte buiging in de ellebogen, beweeg vanuit de schouders, niet vanuit de onderarmen.',
+    'shoulder-press': 'Druk recht omhoog, niet naar voren; hol je onderrug niet.',
+    'abdominal-crunch': 'Kleine, gecontroleerde beweging vanuit de buik, geen momentum uit de heupen.',
+    'perfect-squat': 'Onderrug tegen de rugsteun, knieën in lijn met de tenen, tot dijen evenwijdig aan de vloer.',
+    'leg-extension': 'Gecontroleerd strekken, niet doorzwaaien bovenaan, net zo langzaam weer terug.',
+    'leg-press': 'Voeten schouderbreedte op de plaat; knieën bovenaan niet volledig doorstrekken/blokkeren.',
+    'diverging-lat-pulldown': 'Ellebogen naar beneden én naar achteren, borst vooruit; laat de terugbeweging niet ongecontroleerd gaan.',
+    'chest-press': 'Schouderbladen naar achteren en beneden; polsen recht boven de ellebogen.',
+    'lateral-raise': 'Til tot schouderhoogte, niet hoger, en zwaai het gewicht niet omhoog.',
+    'squat': 'Knieën in lijn met de tenen, borst omhoog, tot dijen evenwijdig aan de vloer.',
+    'lat-pulldown': 'Trek naar je bovenborst, niet achter je nek; niet achterover leunen.',
+    'cable-fly': 'Lichte buiging in de ellebogen, beweeg in een boog voor de borst, geen persbeweging.',
+    'leg-curl': 'Heupen op de pad houden, buig alleen vanuit de knie, geen momentum.',
+    'calf-raise': 'Volledige rek onderaan, korte pauze bovenaan, gecontroleerd zakken.',
+  };
+
+  // Nieuwe standaardoefeningen die aan een bestaande, al opgeslagen lijst worden toegevoegd
+  // (de seedExercises hierboven worden alleen gebruikt bij een compleet lege/nieuwe installatie)
+  const exercisesToBackfill = [
+    {id:'leg-curl', name:'Leg curl', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'hamstrings'},
+    {id:'calf-raise', name:'Calf raise', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'kuiten'},
   ];
 
   // date, weight, sets/reps unknown for historical import (sheet only tracked weight)
@@ -334,8 +407,49 @@
       await saveExercises();
       await saveLogs();
     }
+
+    if(await migrate()){
+      await saveExercises();
+    }
     setStatus('opgeslagen');
     render();
+  }
+
+  // Eenmalige/idempotente opschoning voor een AL bestaande installatie (data staat al in
+  // localStorage op de telefoon): nieuwe standaardoefeningen toevoegen als ze nog niet
+  // bestaan, spiergroep-labels aanvullen op bestaande oefeningen, en het oude reps-doel
+  // van 12 (hypertrofie-achtig) eenmalig verlagen naar 8 (meer kracht/progressive-overload
+  // gericht) zonder een eventuele eigen aanpassing van Jasper te overschrijven.
+  async function migrate(){
+    let changed = false;
+
+    exercisesToBackfill.forEach(def => {
+      if(!exercises.find(e => e.id === def.id)){
+        exercises.push({...def});
+        changed = true;
+      }
+    });
+
+    exercises.forEach(e => {
+      if(!e.muscleGroup && muscleGroupById[e.id]){
+        e.muscleGroup = muscleGroupById[e.id];
+        changed = true;
+      }
+    });
+
+    let repsMigrated = false;
+    try{
+      const flag = await window.storage.get('basicfit-migration-reps8-v1');
+      repsMigrated = flag.value === 'done';
+    }catch(e){ repsMigrated = false; }
+    if(!repsMigrated){
+      exercises.forEach(e => {
+        if(e.targetReps === 12){ e.targetReps = 8; changed = true; }
+      });
+      await window.storage.set('basicfit-migration-reps8-v1', 'done');
+    }
+
+    return changed;
   }
 
   async function saveExercises(){
@@ -358,16 +472,21 @@
     return l.length ? l[l.length-1] : null;
   }
 
+  // Alleen een écht nieuw record: strikt zwaarder dan alles ervoor (dus geen "PR" meer
+  // bij een herhaling van je huidige max, en de allereerste log ooit telt niet mee
+  // want die verbetert nog niets).
   function isPR(exId, log){
-    const all = logsFor(exId).filter(l => l.date <= log.date);
-    return all.every(l => l.weight <= log.weight);
+    const before = logsFor(exId).filter(l => l.date < log.date);
+    if(before.length === 0) return false;
+    return before.every(l => l.weight < log.weight);
   }
 
   function suggestionFor(ex){
     const last = latestLog(ex.id);
     if(!last) return {type:'none', text:'Nog geen data. Log je eerste sessie.'};
     if(last.reps == null || last.sets == null){
-      return {type:'none', text:'Log reps en sets om een tip voor volgende keer te krijgen.'};
+      const next = (last.weight + ex.increment).toFixed(1).replace(/\.0$/,'');
+      return {type:'none', text:'Geen reps/sets gelogd. Vuistregel voor progressieve overbelasting: ging ' + last.weight + ' kg goed, probeer deze keer ' + next + ' kg. Log ook reps/sets voor een preciezere tip.'};
     }
     if(last.reps >= ex.targetReps){
       const next = (last.weight + ex.increment).toFixed(1).replace(/\.0$/,'');
@@ -390,14 +509,63 @@
     return dt.toLocaleDateString('nl-NL', {day:'2-digit', month:'short'});
   }
 
+  // Kijkt over ALLE oefeningen heen (niet per kaart) welke spiergroep het langst geleden
+  // (of nog nooit) getraind is, en stelt daar één concrete oefening voor. Groepen als
+  // 'quadriceps/bilspieren' worden samengevoegd onder hun eerste woord ('quadriceps') zodat
+  // verwante machines meetellen. Blijft stil (geen tip) zolang er geen echte achterstand is,
+  // zodat het geen ruis wordt als je redelijk gelijkmatig traint.
+  function computeTopTip(){
+    const todayD = new Date(todayStr() + 'T00:00:00');
+    const groups = {};
+    exercises.forEach(ex => {
+      if(!ex.muscleGroup) return;
+      const key = ex.muscleGroup.split('/')[0].trim().toLowerCase();
+      const exLogs = logsFor(ex.id);
+      const lastDate = exLogs.length ? exLogs[exLogs.length - 1].date : null;
+      if(!groups[key]) groups[key] = { lastDate: null, exercises: [] };
+      groups[key].exercises.push({ name: ex.name, logCount: exLogs.length });
+      if(lastDate && (!groups[key].lastDate || lastDate > groups[key].lastDate)){
+        groups[key].lastDate = lastDate;
+      }
+    });
+
+    let worstKey = null, worstDays = -1;
+    Object.keys(groups).forEach(key => {
+      const g = groups[key];
+      const days = g.lastDate
+        ? Math.round((todayD - new Date(g.lastDate + 'T00:00:00')) / 86400000)
+        : Infinity;
+      if(days > worstDays){ worstDays = days; worstKey = key; }
+    });
+
+    if(!worstKey || worstDays < 10) return null;
+
+    const g = groups[worstKey];
+    const target = g.exercises.slice().sort((a, b) => a.logCount - b.logCount)[0];
+    const label = worstKey.charAt(0).toUpperCase() + worstKey.slice(1);
+    const whenText = worstDays === Infinity ? 'nog nooit getraind' : worstDays + ' dagen niet getraind';
+    return label + ' ' + whenText + '. Misschien een moment voor ' + target.name + ' de komende sessie.';
+  }
+
+  function renderTopTip(){
+    const el = document.getElementById('top-tip');
+    const textEl = document.getElementById('top-tip-text');
+    const tip = computeTopTip();
+    if(!tip){ el.style.display = 'none'; return; }
+    textEl.textContent = tip;
+    el.style.display = 'flex';
+  }
+
   function render(){
+    renderTopTip();
     const list = document.getElementById('list');
     list.innerHTML = '';
     if(exercises.length === 0){
       list.innerHTML = '<div class="empty">Nog geen oefeningen. Voeg er een toe hieronder.</div>';
       return;
     }
-    exercises.forEach(ex => {
+    const sorted = [...exercises].sort((a, b) => a.name.localeCompare(b.name, 'nl', {sensitivity:'base'}));
+    sorted.forEach(ex => {
       const card = document.createElement('div');
       card.className = 'exercise-card' + (openCards[ex.id] ? ' open' : '');
       card.dataset.exId = ex.id;
@@ -411,7 +579,8 @@
           <div class="card-title">
             <div class="name">${escapeHtml(ex.name)}</div>
             <div class="meta">
-              ${ex.machine ? `<span class="machine-tag">toestel ${escapeHtml(ex.machine)}</span>` : ''}
+              ${ex.muscleGroup ? `<span>${escapeHtml(ex.muscleGroup)}</span>` : ''}
+              ${ex.machine ? `<span class="machine-tag">${escapeHtml(ex.machine)}</span>` : ''}
               ${last ? `<span>${fmtDate(last.date)}</span>` : '<span>geen sessies</span>'}
               ${pct != null ? `<span>${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% sinds start</span>` : ''}
             </div>
@@ -459,7 +628,8 @@
   function renderSuggestion(ex){
     const s = suggestionFor(ex);
     const icon = s.type === 'up' ? '↑' : s.type === 'hold' ? '→' : '•';
-    return `<div class="suggestion ${s.type}"><span>${icon}</span><span>${escapeHtml(s.text)}</span></div>`;
+    const tip = techniqueTips[ex.id];
+    return `<div class="suggestion ${s.type}"><span>${icon}</span><span>${escapeHtml(s.text)}${tip ? `<br><span class="technique-tip">${escapeHtml(tip)}</span>` : ''}</span></div>`;
   }
 
   function renderLogTable(ex){
@@ -469,14 +639,15 @@
       const pr = isPR(ex.id, log);
       return `<tr>
         <td>${fmtDate(log.date)}</td>
-        <td>${log.weight} kg${pr ? '<span class="pr-badge">PR</span>' : ''}</td>
+        <td class="${pr ? 'weight-pr' : ''}">${log.weight} kg</td>
         <td>${log.sets != null ? log.sets : '–'}</td>
         <td>${log.reps != null ? log.reps : '–'}</td>
         <td>${log.machine ? log.machine : (ex.machine || '–')}</td>
+        <td class="row-del-cell"><button class="ghost row-del" data-delete-log="${log.id}" title="Sessie verwijderen" aria-label="Sessie verwijderen">&times;</button></td>
       </tr>`;
     }).join('');
     return `<table class="log-table">
-      <tr><th>datum</th><th>gewicht</th><th>sets</th><th>reps</th><th>toestel</th></tr>
+      <tr><th>datum</th><th>gewicht</th><th>sets</th><th>reps</th><th>toestel</th><th></th></tr>
       ${rows}
     </table>`;
   }
@@ -501,7 +672,19 @@
         }]
       },
       options: {
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1c1f26',
+            titleColor: '#9aa0ab',
+            bodyColor: '#ece9e2',
+            borderColor: '#333844',
+            borderWidth: 1,
+            padding: 8,
+            displayColors: false,
+            callbacks: { label: (ctx) => ctx.parsed.y + ' kg' }
+          }
+        },
         scales: {
           x: { ticks: { color: '#9aa0ab', font:{size:10} }, grid: { color: '#242832' } },
           y: { ticks: { color: '#9aa0ab', font:{size:10} }, grid: { color: '#242832' } },
@@ -575,6 +758,17 @@
       render();
       return;
     }
+    const delLogBtn = e.target.closest('[data-delete-log]');
+    if(delLogBtn){
+      const logId = delLogBtn.dataset.deleteLog;
+      if(!confirm('Deze sessie verwijderen?')) return;
+      const removed = logs.find(l => l.id === logId);
+      logs = logs.filter(l => l.id !== logId);
+      await saveLogs();
+      if(removed) openCards[removed.exerciseId] = true;
+      render();
+      return;
+    }
     const delBtn = e.target.closest('[data-delete-ex]');
     if(delBtn){
       const id = delBtn.dataset.deleteEx;
@@ -592,13 +786,15 @@
     const name = document.getElementById('new-ex-name').value.trim();
     const machine = document.getElementById('new-ex-machine').value.trim();
     const increment = parseFloat(document.getElementById('new-ex-increment').value) || 2.5;
+    const muscleGroup = document.getElementById('new-ex-muscle').value.trim();
     if(!name){ alert('Vul een naam in.'); return; }
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
-    exercises.push({id, name, machine, increment, targetReps:12, targetSets:3});
+    exercises.push({id, name, machine, increment, targetReps:8, targetSets:3, muscleGroup: muscleGroup || ''});
     await saveExercises();
     document.getElementById('new-ex-name').value = '';
     document.getElementById('new-ex-machine').value = '';
     document.getElementById('new-ex-increment').value = '2.5';
+    document.getElementById('new-ex-muscle').value = '';
     render();
   });
 

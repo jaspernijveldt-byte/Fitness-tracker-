@@ -1,4 +1,4 @@
-const CACHE = 'ijzerlog-v3';
+const CACHE = 'ijzerlog-v4';
 const ASSETS = [
   './',
   './index.html',
