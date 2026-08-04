@@ -389,7 +389,6 @@
   }
 
   async function loadAll(){
-    setStatus('laden…');
     try{
       const exRes = await window.storage.get(STORAGE_KEY_EX);
       exercises = exRes ? JSON.parse(exRes.value) : null;
@@ -411,7 +410,6 @@
     if(await migrate()){
       await saveExercises();
     }
-    setStatus('opgeslagen');
     render();
   }
 
@@ -738,7 +736,6 @@
         note,
       });
       await saveLogs();
-      setStatus('opgeslagen');
       render();
       openCards[id] = true;
       render();
@@ -752,7 +749,6 @@
       ex.targetSets = parseInt(document.getElementById('cfg-sets-' + id).value) || ex.targetSets;
       ex.increment = parseFloat(document.getElementById('cfg-inc-' + id).value) || ex.increment;
       await saveExercises();
-      setStatus('opgeslagen');
       render();
       openCards[id] = true;
       render();
