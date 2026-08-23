@@ -340,7 +340,7 @@
   }
   .add-exercise h3{font-size:14px;color:var(--text-dim);margin-bottom:8px;}
   .empty{color:var(--text-dim);font-size:13px;padding:20px;text-align:center;}
-  .footer-actions{display:flex;justify-content:center;margin-top:24px;}
+  .footer-actions{display:flex;justify-content:center;gap:16px;margin-top:24px;}
   .footer-actions .ghost{color:var(--text-dim);font-size:12px;}
 </style>
 </head>
@@ -438,6 +438,8 @@
 
 <div class="footer-actions">
   <button class="ghost" id="export-btn">Exporteer data</button>
+  <button class="ghost" id="import-btn">Importeer data</button>
+  <input type="file" id="import-file" accept="application/json,.json" style="display:none;">
 </div>
 
 <script>
@@ -704,6 +706,66 @@
     try{
       await window.storage.set(STORAGE_KEY_LOGS, JSON.stringify(logs));
     }catch(e){ console.error('opslaan mislukt', e); setStatus('opslaan mislukt'); }
+  }
+
+  // Importeren is bewust ALLEEN toevoegen/bijwerken, nooit verwijderen. Reden: een export
+  // is een moment-opname, en tussen exporteren en weer importeren kunnen er op de telefoon
+  // alweer nieuwe sessies bijgekomen zijn. Een 'vervang alles'-import zou die stilletjes
+  // wissen. Bestaande oefeningen krijgen hun velden bijgewerkt (zo landen correcties zoals
+  // een aangepaste spiergroep-categorie); bestaande logs worden met rust gelaten (logs zijn
+  // in de praktijk write-once, er is al een aparte verwijderknop per sessie); alles wat nog
+  // niet bestaat wordt toegevoegd. Niets dat al in de app staat verdwijnt door een import.
+  function buildImportPlan(data){
+    const errors = [];
+    if(!data || typeof data !== 'object'){ errors.push('Bestand is geen geldig JSON-object.'); return { errors }; }
+    if(!Array.isArray(data.exercises)){ errors.push('Veld "exercises" ontbreekt of is geen lijst.'); }
+    if(!Array.isArray(data.logs)){ errors.push('Veld "logs" ontbreekt of is geen lijst.'); }
+    if(errors.length) return { errors };
+
+    const exByIdNow = new Map(exercises.map(e => [e.id, e]));
+    const logIdsNow = new Set(logs.map(l => l.id));
+
+    const newExercises = [];
+    const updatedExercises = [];
+    let unchangedExercises = 0;
+    data.exercises.forEach(imp => {
+      if(!imp || !imp.id){ errors.push('Een oefening in het bestand mist een id, overgeslagen.'); return; }
+      const current = exByIdNow.get(imp.id);
+      if(!current){ newExercises.push(imp); return; }
+      const changedKeys = Object.keys(imp).filter(k => k !== 'id' && JSON.stringify(imp[k]) !== JSON.stringify(current[k]));
+      if(changedKeys.length) updatedExercises.push({ id: imp.id, name: current.name, changedKeys, imp });
+      else unchangedExercises++;
+    });
+
+    const newLogs = [];
+    let skippedLogs = 0;
+    data.logs.forEach(imp => {
+      if(!imp || !imp.id){ errors.push('Een sessie in het bestand mist een id, overgeslagen.'); return; }
+      if(logIdsNow.has(imp.id)) skippedLogs++;
+      else newLogs.push(imp);
+    });
+
+    return { errors, newExercises, updatedExercises, unchangedExercises, newLogs, skippedLogs };
+  }
+
+  function applyImportPlan(plan){
+    plan.newExercises.forEach(imp => exercises.push({...imp}));
+    plan.updatedExercises.forEach(u => {
+      const current = exercises.find(e => e.id === u.id);
+      if(current) Object.assign(current, u.imp);
+    });
+    plan.newLogs.forEach(imp => logs.push({...imp}));
+  }
+
+  function describeImportPlan(plan){
+    const lines = [];
+    if(plan.newExercises.length) lines.push(plan.newExercises.length + ' nieuwe oefening(en): ' + plan.newExercises.map(e => e.name).join(', '));
+    if(plan.updatedExercises.length) lines.push(plan.updatedExercises.length + ' oefening(en) bijgewerkt: ' + plan.updatedExercises.map(u => u.name + ' (' + u.changedKeys.join(', ') + ')').join('; '));
+    if(plan.newLogs.length) lines.push(plan.newLogs.length + ' nieuwe sessie(s) toegevoegd.');
+    if(plan.skippedLogs) lines.push(plan.skippedLogs + ' sessie(s) al aanwezig, overgeslagen.');
+    if(!lines.length) lines.push('Niets nieuws of gewijzigd gevonden in dit bestand.');
+    lines.push('Er wordt niets verwijderd.');
+    return lines.join('\n');
   }
 
   function logsFor(exId){
@@ -1327,6 +1389,41 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('import-btn').addEventListener('click', () => {
+    document.getElementById('import-file').click();
+  });
+
+  document.getElementById('import-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    e.target.value = ''; // zelfde bestand later opnieuw kunnen kiezen
+    if(!file) return;
+
+    let data;
+    try{
+      const text = await file.text();
+      data = JSON.parse(text);
+    }catch(err){
+      alert('Kon het bestand niet lezen: geen geldig JSON-bestand.');
+      return;
+    }
+
+    const plan = buildImportPlan(data);
+    if(plan.errors && plan.errors.length && !plan.newExercises){
+      alert('Import mislukt:\n' + plan.errors.join('\n'));
+      return;
+    }
+
+    const summary = describeImportPlan(plan);
+    const warnings = plan.errors.length ? '\n\nLet op:\n' + plan.errors.join('\n') : '';
+    if(!confirm('Dit importbestand bevat:\n\n' + summary + warnings + '\n\nDoorgaan?')) return;
+
+    applyImportPlan(plan);
+    await saveExercises();
+    await saveLogs();
+    render();
+    setStatus('Import verwerkt: ' + plan.newExercises.length + ' nieuw, ' + plan.updatedExercises.length + ' bijgewerkt, ' + plan.newLogs.length + ' sessie(s) toegevoegd.');
   });
 
   document.getElementById('new-ex-category').innerHTML = categoryOptions('borst');
