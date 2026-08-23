@@ -60,6 +60,8 @@
     --accent:#a8d94a;
     --accent-dim:#8bb83f;
     --warn:#ff7a45;
+    --info:#5b9dd9;
+    --star:#f2c53d;
     --radius:10px;
     --ease-out:cubic-bezier(0.23,1,0.32,1);
     --ease-in-out:cubic-bezier(0.77,0,0.175,1);
@@ -100,7 +102,32 @@
   }
   .card-head:hover{background:var(--surface-2);}
   .card-title{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .name-row{display:flex;align-items:center;gap:7px;min-width:0;}
   .card-title .name{font-size:16px;font-weight:700;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:0.01em;}
+
+  /* Sterretje: prioriteit-markering. Ruime tikzone (min. 32px) voor gebruik met
+     zweethanden in de gym, maar visueel klein zodat het de naam niet overstemt. */
+  .star{
+    background:none;
+    border:none;
+    padding:0;
+    width:24px;
+    height:24px;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:17px;
+    line-height:1;
+    color:var(--border);
+    cursor:pointer;
+    transition:color 160ms var(--ease-out), transform 160ms var(--ease-out);
+  }
+  .star.on{color:var(--star);}
+  .star:active{transform:scale(0.85);}
+  @media (hover:hover) and (pointer:fine){
+    .star:hover{color:var(--star);border-color:transparent;}
+  }
   .card-title .meta{font-size:12px;color:var(--text-dim);display:flex;gap:8px;flex-wrap:wrap;}
   .machine-tag{
     background:var(--surface-2);
@@ -152,8 +179,8 @@
   }
   .suggestion.up{background:rgba(168,217,74,0.10);border:1px solid rgba(168,217,74,0.4);color:var(--accent);}
   .suggestion.hold{background:rgba(255,122,69,0.08);border:1px solid rgba(255,122,69,0.35);color:var(--warn);}
+  .suggestion.plateau{background:rgba(91,157,217,0.10);border:1px solid rgba(91,157,217,0.4);color:var(--info);}
   .suggestion.none{background:var(--surface-2);border:1px solid var(--border);color:var(--text-dim);}
-  .technique-tip{display:inline-block;margin-top:4px;opacity:0.75;}
 
   table.log-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px;}
   table.log-table th{text-align:left;color:var(--text-dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.03em;padding:4px 6px;border-bottom:1px solid var(--border);}
@@ -221,6 +248,48 @@
     color:var(--text);
     line-height:1.4;
   }
+  /* Eén rustige regel met de twee bedieningselementen (weergave + progressiebereik),
+     zodat de kop van de app niet volloopt met losse balken. */
+  .controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:16px;
+    align-items:flex-end;
+  }
+  .control{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px;}
+  .control label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;}
+  .control select,.control input{
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:6px;
+    padding:8px 9px;
+    font-size:13px;
+    font-family:inherit;
+    width:100%;
+  }
+  .control select:focus,.control input:focus{outline:none;border-color:var(--accent);}
+
+  .group-header{
+    font-family:'Barlow Condensed',sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    font-size:12px;
+    font-weight:700;
+    color:var(--text-dim);
+    margin:18px 0 8px;
+    padding-bottom:5px;
+    border-bottom:1px solid var(--border);
+  }
+  .group-header:first-child{margin-top:0;}
+
+  /* "Vandaag"-weergave: al gelogde oefeningen gedimd naar achteren, zodat wat nog
+     openstaat vooraan en op volle sterkte staat. */
+  .exercise-card.done-today{opacity:0.45;}
+  .exercise-card.done-today.open{opacity:1;}
+  .done-mark{color:var(--accent);}
+
   .top-tip-label{
     font-family:'Barlow Condensed',sans-serif;
     text-transform:uppercase;
@@ -231,6 +300,37 @@
     flex-shrink:0;
   }
 
+  /* Week-focus (80/20): bewust geen letterlijke ronde SVG-ring, dat zou een tweede
+     decoratief signature-element naast de accentkleur worden. Vijf rustige bolletjes
+     in een rij, zelfde stille visuele taal als de rest van de app. */
+  .week-focus{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:10px 14px;
+    margin-bottom:16px;
+  }
+  .week-focus-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:8px;
+  }
+  .week-focus-label{
+    font-family:'Barlow Condensed',sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    font-size:11px;
+    color:var(--text-dim);
+    font-weight:700;
+  }
+  .week-focus-count{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums;}
+  .week-focus-dots{display:flex;gap:10px;flex-wrap:wrap;}
+  .week-focus-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);}
+  .week-focus-dot{width:8px;height:8px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);flex-shrink:0;}
+  .week-focus-item.done .week-focus-dot{background:var(--accent);border-color:var(--accent);}
+  .week-focus-item.done{color:var(--text);}
+
   .add-exercise{
     background:var(--surface);
     border:1px dashed var(--border);
@@ -240,6 +340,8 @@
   }
   .add-exercise h3{font-size:14px;color:var(--text-dim);margin-bottom:8px;}
   .empty{color:var(--text-dim);font-size:13px;padding:20px;text-align:center;}
+  .footer-actions{display:flex;justify-content:center;margin-top:24px;}
+  .footer-actions .ghost{color:var(--text-dim);font-size:12px;}
 </style>
 </head>
 <body>
@@ -255,7 +357,7 @@
     </svg>
     <div>
       <h1>IJzerlog</h1>
-      <div class="sub">Basic Fit Hilversum · progressie sinds aug 2025</div>
+      <div class="sub">Basic Fit Hilversum</div>
     </div>
   </div>
   <div id="status"></div>
@@ -264,6 +366,43 @@
 <div id="top-tip" class="top-tip" style="display:none;">
   <span class="top-tip-label">Focus</span>
   <span id="top-tip-text"></span>
+</div>
+
+<div id="week-focus" class="week-focus" style="display:none;">
+  <div class="week-focus-head">
+    <span class="week-focus-label">Week</span>
+    <span class="week-focus-count" id="week-focus-count"></span>
+  </div>
+  <div class="week-focus-dots" id="week-focus-dots"></div>
+</div>
+
+<div class="controls">
+  <div class="control">
+    <label for="view-mode">Weergave</label>
+    <select id="view-mode">
+      <option value="alfabetisch">Alfabetisch</option>
+      <option value="spiergroep">Spiergroep</option>
+      <option value="boven">Bovenlichaam</option>
+      <option value="onder">Onderlichaam</option>
+      <option value="vandaag">Vandaag</option>
+      <option value="gepind">Met sterretje</option>
+    </select>
+  </div>
+  <div class="control">
+    <label for="range-mode">Progressie vanaf</label>
+    <select id="range-mode">
+      <option value="all">Begin</option>
+      <option value="1m">1 maand</option>
+      <option value="3m">3 maanden</option>
+      <option value="6m">6 maanden</option>
+      <option value="ytd">Dit jaar</option>
+      <option value="custom">Aangepast</option>
+    </select>
+  </div>
+  <div class="control" id="custom-range-wrap" style="display:none;">
+    <label for="range-from">Vanaf datum</label>
+    <input type="date" id="range-from">
+  </div>
 </div>
 
 <div id="list"></div>
@@ -284,7 +423,11 @@
       <input id="new-ex-increment" type="number" step="0.5" value="2.5">
     </div>
     <div class="field">
-      <label>Spiergroep (optioneel)</label>
+      <label>Spiergroep</label>
+      <select id="new-ex-category"></select>
+    </div>
+    <div class="field">
+      <label>Label (optioneel)</label>
       <input id="new-ex-muscle" placeholder="bv. hamstrings">
     </div>
   </div>
@@ -293,55 +436,110 @@
   </div>
 </div>
 
+<div class="footer-actions">
+  <button class="ghost" id="export-btn">Exporteer data</button>
+</div>
+
 <script>
 (function(){
   const STORAGE_KEY_EX = 'basicfit-exercises-v1';
   const STORAGE_KEY_LOGS = 'basicfit-logs-v1';
 
   const seedExercises = [
-    {id:'seated-dip', name:'Seated dip', machine:'52', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'triceps/borst'},
-    {id:'back-extension', name:'Back extension', machine:'43', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'onderrug'},
-    {id:'fly', name:'Fly', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'borst'},
-    {id:'shoulder-press', name:'Shoulder press', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'schouders'},
-    {id:'abdominal-crunch', name:'Abdominal crunch', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'buik'},
-    {id:'perfect-squat', name:'Perfect squat', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'quadriceps'},
-    {id:'leg-extension', name:'Leg extension', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'quadriceps'},
-    {id:'leg-press', name:'Leg press', machine:'53', increment:5, targetReps:8, targetSets:3, muscleGroup:'quadriceps/bilspieren'},
-    {id:'diverging-lat-pulldown', name:'Diverging lat pulldown', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'rug'},
-    {id:'chest-press', name:'Chest press', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'borst'},
-    {id:'lateral-raise', name:'Lateral raise', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'schouders'},
-    {id:'squat', name:'Squat', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'quadriceps'},
-    {id:'lat-pulldown', name:'Lat pulldown', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'rug'},
-    {id:'cable-fly', name:'Cable fly', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'borst'},
-    {id:'leg-curl', name:'Leg curl', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'hamstrings'},
-    {id:'calf-raise', name:'Calf raise', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'kuiten'},
+    {id:'seated-dip', name:'Seated dip', machine:'52', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'triceps/borst', muscleCategory:'armen'},
+    {id:'back-extension', name:'Back extension', machine:'43', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'onderrug', muscleCategory:'rug'},
+    {id:'fly', name:'Fly', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'borst', muscleCategory:'borst'},
+    {id:'shoulder-press', name:'Shoulder press', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'schouders', muscleCategory:'schouders'},
+    {id:'abdominal-crunch', name:'Abdominal crunch', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'buik', muscleCategory:'buik'},
+    {id:'perfect-squat', name:'Perfect squat', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'quadriceps', muscleCategory:'benen'},
+    {id:'leg-extension', name:'Leg extension', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'quadriceps', muscleCategory:'benen'},
+    {id:'leg-press', name:'Leg press', machine:'53', increment:5, targetReps:8, targetSets:3, muscleGroup:'quadriceps/bilspieren', muscleCategory:'benen'},
+    {id:'diverging-lat-pulldown', name:'Diverging lat pulldown', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'rug', muscleCategory:'rug'},
+    {id:'chest-press', name:'Chest press', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'borst', muscleCategory:'borst'},
+    {id:'lateral-raise', name:'Lateral raise', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'schouders', muscleCategory:'schouders'},
+    {id:'squat', name:'Squat', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'quadriceps', muscleCategory:'benen'},
+    {id:'lat-pulldown', name:'Lat pulldown', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'rug', muscleCategory:'rug'},
+    {id:'cable-fly', name:'Cable fly', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'borst', muscleCategory:'borst'},
+    {id:'leg-curl', name:'Leg curl', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'hamstrings', muscleCategory:'benen'},
+    {id:'calf-raise', name:'Calf raise', machine:'', increment:2.5, targetReps:8, targetSets:3, muscleGroup:'kuiten', muscleCategory:'benen'},
   ];
 
-  // id -> muscleGroup, gebruikt om ontbrekende tags in bestaande (al opgeslagen) data aan te vullen
+  // id -> muscleGroup / muscleCategory, gebruikt om ontbrekende tags in bestaande
+  // (al opgeslagen) data aan te vullen
   const muscleGroupById = {};
-  seedExercises.forEach(e => { muscleGroupById[e.id] = e.muscleGroup; });
+  const muscleCategoryById = {};
+  seedExercises.forEach(e => {
+    muscleGroupById[e.id] = e.muscleGroup;
+    muscleCategoryById[e.id] = e.muscleCategory;
+  });
 
-  // Eén korte, oefeningspecifieke uitvoeringscue (geen volledige les, gewoon het
-  // belangrijkste aandachtspunt) — zodat de suggestiebox niet bij elke oefening
-  // hetzelfde generieke zinnetje toont.
-  const techniqueTips = {
-    'seated-dip': 'Buig niet te ver naar voren; romp rechtop houden voor triceps-focus.',
-    'back-extension': 'Gecontroleerd bewegen, niet doorzwiepen; strek de heup niet voorbij een rechte lijn.',
-    'fly': 'Lichte buiging in de ellebogen, beweeg vanuit de schouders, niet vanuit de onderarmen.',
-    'shoulder-press': 'Druk recht omhoog, niet naar voren; hol je onderrug niet.',
-    'abdominal-crunch': 'Kleine, gecontroleerde beweging vanuit de buik, geen momentum uit de heupen.',
-    'perfect-squat': 'Onderrug tegen de rugsteun, knieën in lijn met de tenen, tot dijen evenwijdig aan de vloer.',
-    'leg-extension': 'Gecontroleerd strekken, niet doorzwaaien bovenaan, net zo langzaam weer terug.',
-    'leg-press': 'Voeten schouderbreedte op de plaat; knieën bovenaan niet volledig doorstrekken/blokkeren.',
-    'diverging-lat-pulldown': 'Ellebogen naar beneden én naar achteren, borst vooruit; laat de terugbeweging niet ongecontroleerd gaan.',
-    'chest-press': 'Schouderbladen naar achteren en beneden; polsen recht boven de ellebogen.',
-    'lateral-raise': 'Til tot schouderhoogte, niet hoger, en zwaai het gewicht niet omhoog.',
-    'squat': 'Knieën in lijn met de tenen, borst omhoog, tot dijen evenwijdig aan de vloer.',
-    'lat-pulldown': 'Trek naar je bovenborst, niet achter je nek; niet achterover leunen.',
-    'cable-fly': 'Lichte buiging in de ellebogen, beweeg in een boog voor de borst, geen persbeweging.',
-    'leg-curl': 'Heupen op de pad houden, buig alleen vanuit de knie, geen momentum.',
-    'calf-raise': 'Volledige rek onderaan, korte pauze bovenaan, gecontroleerd zakken.',
+  // Trainingslogische volgorde voor de spiergroep-weergave (niet alfabetisch: dan zou
+  // 'buik' toevallig tussen de benen-oefeningen belanden).
+  const MUSCLE_ORDER = ['borst','rug','schouders','armen','benen','buik','overig'];
+  const MUSCLE_LABELS = {
+    borst:'Borst', rug:'Rug', schouders:'Schouders', armen:'Armen',
+    benen:'Benen', buik:'Buik', overig:'Overig',
   };
+
+  // Bovenlichaam/onderlichaam-splitsing voor de "boven"/"onder"-weergave. Afgeleid uit de
+  // vaste muscleCategory, dus geen los tagveld nodig. 'overig' hoort bij geen van beide en
+  // wordt daarom in allebei getoond, zodat er nooit stilletjes een oefening verdwijnt.
+  const SPLIT_UPPER = ['borst','rug','schouders','armen','buik','overig'];
+  const SPLIT_LOWER = ['benen','overig'];
+
+  // Vaste categorieën (dropdown) zijn de bron van waarheid voor sortering/groepering
+  // en focus-tip: robuust, geen typefouten of taalverschillen die de indeling stilletjes
+  // laten mislukken. Het losse 'muscleGroup'-label (bv. 'hamstrings', 'quadriceps/bilspieren')
+  // blijft ernaast bestaan puur voor de weergave, want dat detail is fijnmaziger dan de
+  // 6 hoofdcategorieën en was al ingevuld voor de bestaande oefeningen.
+  const LEGACY_MUSCLE_MAP = {
+    borst:'borst', chest:'borst', pectoralis:'borst',
+    rug:'rug', onderrug:'rug', lats:'rug', latissimus:'rug',
+    schouders:'schouders', schouder:'schouders', deltoids:'schouders',
+    triceps:'armen', biceps:'armen', armen:'armen', arm:'armen', onderarm:'armen',
+    quadriceps:'benen', quads:'benen', hamstrings:'benen', bilspieren:'benen',
+    glutes:'benen', kuiten:'benen', benen:'benen', been:'benen', adductoren:'benen',
+    buik:'buik', core:'buik', abs:'buik',
+  };
+
+  // Alleen gebruikt om bestaande (oudere) data zonder muscleCategory eenmalig in te
+  // delen op basis van het vrije tekstlabel dat er toen al in stond.
+  function legacyMuscleCat(ex){
+    if(!ex.muscleGroup) return 'overig';
+    const parts = ex.muscleGroup.toLowerCase().split('/').map(s => s.trim());
+    for(const p of parts){ if(LEGACY_MUSCLE_MAP[p]) return LEGACY_MUSCLE_MAP[p]; }
+    return 'overig';
+  }
+
+  function muscleCat(ex){
+    return ex.muscleCategory || legacyMuscleCat(ex);
+  }
+
+  function categoryOptions(selected){
+    return MUSCLE_ORDER.map(c =>
+      `<option value="${c}" ${c === selected ? 'selected' : ''}>${MUSCLE_LABELS[c]}</option>`
+    ).join('');
+  }
+
+  // Aantal opeenvolgende sessies op het streefaantal reps voordat de app een
+  // gewichtsverhoging voorstelt. Voorkomt dat dezelfde tip na één sessie al verschijnt.
+  const STREAK_TO_ADVANCE = 2;
+
+  // Vanaf hoeveel sessies op rij op hetzelfde gewicht (ongeacht of het streefaantal reps
+  // wordt gehaald) de app spreekt van een plateau en tempo-overload voorstelt in plaats
+  // van te blijven aandringen op meer kilo's.
+  const PLATEAU_SESSIONS = 4;
+
+  // Esthetische kernprikkels voor de wekelijkse focus-check (80/20-principe). Alleen
+  // oefeningen die hier expliciet aan gekoppeld zijn (via instellingen) tellen mee; de
+  // rest van de lijst blijft erbuiten. Geen apart tagveld nodig als je dit niet gebruikt.
+  const AESTHETIC_PATTERNS = [
+    {key:'upper_chest', label:'Bovenborst'},
+    {key:'lat_width', label:'Rugbreedte'},
+    {key:'lateral_delts', label:'Schouderbreedte'},
+    {key:'core', label:'Rompdikte'},
+    {key:'mid_back', label:'Rugdikte'},
+  ];
 
   // Nieuwe standaardoefeningen die aan een bestaande, al opgeslagen lijst worden toegevoegd
   // (de seedExercises hierboven worden alleen gebruikt bij een compleet lege/nieuwe installatie)
@@ -379,10 +577,15 @@
     return logs;
   }
 
+  const STORAGE_KEY_PREFS = 'basicfit-prefs-v1';
+
   let exercises = [];
   let logs = [];
   let openCards = {};
   let charts = {};
+  let viewMode = 'alfabetisch';
+  let rangeMode = 'all';
+  let customFrom = '';
 
   function setStatus(msg){
     document.getElementById('status').textContent = msg;
@@ -407,10 +610,32 @@
       await saveLogs();
     }
 
+    try{
+      const prefRes = await window.storage.get(STORAGE_KEY_PREFS);
+      const p = JSON.parse(prefRes.value);
+      if(p.viewMode) viewMode = p.viewMode;
+      if(p.rangeMode) rangeMode = p.rangeMode;
+      if(p.customFrom) customFrom = p.customFrom;
+    }catch(e){ /* nog geen voorkeuren opgeslagen, standaardwaarden blijven staan */ }
+
     if(await migrate()){
       await saveExercises();
     }
+    syncControls();
     render();
+  }
+
+  async function savePrefs(){
+    try{
+      await window.storage.set(STORAGE_KEY_PREFS, JSON.stringify({viewMode, rangeMode, customFrom}));
+    }catch(e){ console.error('voorkeuren opslaan mislukt', e); }
+  }
+
+  function syncControls(){
+    document.getElementById('view-mode').value = viewMode;
+    document.getElementById('range-mode').value = rangeMode;
+    document.getElementById('range-from').value = customFrom;
+    document.getElementById('custom-range-wrap').style.display = rangeMode === 'custom' ? 'flex' : 'none';
   }
 
   // Eenmalige/idempotente opschoning voor een AL bestaande installatie (data staat al in
@@ -431,6 +656,26 @@
     exercises.forEach(e => {
       if(!e.muscleGroup && muscleGroupById[e.id]){
         e.muscleGroup = muscleGroupById[e.id];
+        changed = true;
+      }
+    });
+
+    // muscleCategory is de nieuwe, robuuste indeling (vaste dropdown-waarden i.p.v. vrije
+    // tekst). Oefeningen die deze nog missen krijgen 'm eenmalig: bekende standaardoefeningen
+    // via hun vaste categorie, eigen toevoegingen via de oude fuzzy-match op hun bestaande
+    // tekstlabel, zodat de spiergroep-weergave niet stilletjes in 'overig' terechtkomt.
+    exercises.forEach(e => {
+      if(!e.muscleCategory){
+        e.muscleCategory = muscleCategoryById[e.id] || legacyMuscleCat(e);
+        changed = true;
+      }
+    });
+
+    // isAssisted expliciet false zetten (i.p.v. undefined te laten) zodat de
+    // progressie-/PR-berekeningen altijd een echte boolean tegenkomen.
+    exercises.forEach(e => {
+      if(typeof e.isAssisted === 'undefined'){
+        e.isAssisted = false;
         changed = true;
       }
     });
@@ -472,34 +717,122 @@
 
   // Alleen een écht nieuw record: strikt zwaarder dan alles ervoor (dus geen "PR" meer
   // bij een herhaling van je huidige max, en de allereerste log ooit telt niet mee
-  // want die verbetert nog niets).
+  // want die verbetert nog niets). Bij een 'assisted' toestel is minder gewicht juist
+  // beter, dus daar draait de vergelijking om.
   function isPR(exId, log){
     const before = logsFor(exId).filter(l => l.date < log.date);
     if(before.length === 0) return false;
+    const ex = exercises.find(e => e.id === exId);
+    if(ex && ex.isAssisted) return before.every(l => l.weight > log.weight);
     return before.every(l => l.weight < log.weight);
   }
 
+  // Progressive-overload state machine per oefening. Drie stille toestanden:
+  // - niets (nog in opbouw, niet genoeg gegevens om iets zinnigs te zeggen)
+  // - 'hold' (consolidatie: 1x het streefaantal reps gehaald, nog 1x herhalen met
+  //   strikte vorm voor de knop echt om moet)
+  // - 'up' (verhoging verdiend: STREAK_TO_ADVANCE keer op rij gehaald)
+  // - 'plateau' (hetzelfde gewicht staat >= PLATEAU_SESSIONS sessies vast zonder dat de
+  //   reps-streak op gang komt: geen kilo's forceren, tempo-overload voorstellen i.p.v.
+  //   gewoon te blijven aandringen — dit is de tendon-veiligheidsklep uit Gemini's module 2).
   function suggestionFor(ex){
-    const last = latestLog(ex.id);
-    if(!last) return {type:'none', text:'Nog geen data. Log je eerste sessie.'};
-    if(last.reps == null || last.sets == null){
-      const next = (last.weight + ex.increment).toFixed(1).replace(/\.0$/,'');
-      return {type:'none', text:'Geen reps/sets gelogd. Vuistregel voor progressieve overbelasting: ging ' + last.weight + ' kg goed, probeer deze keer ' + next + ' kg. Log ook reps/sets voor een preciezere tip.'};
+    const l = logsFor(ex.id);
+    if(l.length === 0) return null;
+    const lastLog = l[l.length - 1];
+    const dir = ex.isAssisted ? -1 : 1;
+
+    let repStreak = 0;
+    let streakWeight = null;
+    for(let i = l.length - 1; i >= 0; i--){
+      const log = l[i];
+      if(log.reps == null || log.reps < ex.targetReps) break;
+      if(streakWeight === null) streakWeight = log.weight;
+      else if(log.weight !== streakWeight) break;
+      repStreak++;
     }
-    if(last.reps >= ex.targetReps){
-      const next = (last.weight + ex.increment).toFixed(1).replace(/\.0$/,'');
-      return {type:'up', text:'Alle sets op ' + ex.targetReps + '+ reps. Probeer volgende keer ' + next + ' kg.'};
-    }else{
-      return {type:'hold', text:'Nog niet op ' + ex.targetReps + ' reps. Blijf op ' + last.weight + ' kg en focus op reps.'};
+
+    if(repStreak >= STREAK_TO_ADVANCE){
+      const next = (streakWeight + dir * ex.increment).toFixed(1).replace(/\.0$/,'');
+      return {
+        type:'up',
+        text: repStreak + ' sessies op rij ' + ex.targetReps + '+ reps met ' + streakWeight + ' kg. Tijd om naar ' + next + ' kg te gaan.',
+      };
     }
+    if(repStreak === 1){
+      return {
+        type:'hold',
+        text: 'Eerste keer ' + ex.targetReps + '+ reps met ' + streakWeight + ' kg. Herhaal dit gewicht nog één sessie met strikte vorm voor je omhoog gaat.',
+      };
+    }
+
+    let sameWeightRun = 0;
+    for(let i = l.length - 1; i >= 0; i--){
+      if(l[i].weight !== lastLog.weight) break;
+      sameWeightRun++;
+    }
+    if(sameWeightRun >= PLATEAU_SESSIONS){
+      return {
+        type:'plateau',
+        text: lastLog.weight + ' kg staat al ' + sameWeightRun + ' sessies vast. Forceer geen kilo\'s (peesveiligheid); focus de komende sessies op tempo: 3 sec zakken, 1 sec pauze onderin.',
+      };
+    }
+    return null;
   }
 
-  function pctChange(exId){
+  // Begindatum van het gekozen progressiebereik, of null voor "vanaf het begin".
+  function rangeFromDate(){
+    if(rangeMode === 'all') return null;
+    if(rangeMode === 'custom') return customFrom || null;
+    if(rangeMode === 'ytd') return todayStr().slice(0,4) + '-01-01';
+    const months = rangeMode === '1m' ? 1 : rangeMode === '3m' ? 3 : rangeMode === '6m' ? 6 : 0;
+    if(!months) return null;
+    const d = new Date(todayStr() + 'T00:00:00');
+    d.setMonth(d.getMonth() - months);
+    return d.toISOString().slice(0,10);
+  }
+
+  function logsInRange(exId){
+    const from = rangeFromDate();
     const l = logsFor(exId);
+    return from ? l.filter(x => x.date >= from) : l;
+  }
+
+  // Percentage berekend binnen het gekozen bereik: eerste gelogde gewicht ná de
+  // begindatum versus het laatste. Zo zie je bijvoorbeeld alleen de winst sinds juli
+  // in plaats van sinds je allereerste sessie. Bij een 'assisted' toestel betekent
+  // minder gewicht (minder tegenwicht) juist vooruitgang, dus die telt omgekeerd.
+  function pctChange(exId){
+    const l = logsInRange(exId);
     if(l.length < 2) return null;
     const first = l[0].weight, last = l[l.length-1].weight;
     if(!first) return null;
+    const ex = exercises.find(e => e.id === exId);
+    if(ex && ex.isAssisted) return ((first - last) / first) * 100;
     return ((last - first) / first) * 100;
+  }
+
+  // Voortgang richting een zelf ingesteld doelgewicht (optioneel per oefening), los van
+  // het gekozen progressiebereik. Bij een gewone oefening is dat simpelweg huidig/doel.
+  // Bij 'assisted' is minder tegenwicht beter: het hoogst ooit gelogde gewicht (het
+  // zwaarst-ondersteunde punt) dient als referentie-startpunt, en de balk vult zich
+  // naarmate je richting het doel (minder hulp) beweegt. Clamped 0-100%: verder dan het
+  // doel bestaat niet, minder dan 0 evenmin.
+  function goalPct(ex, current){
+    if(ex.targetWeight == null || isNaN(ex.targetWeight)) return null;
+    const target = ex.targetWeight;
+    if(ex.isAssisted){
+      const weights = logsFor(ex.id).map(l => l.weight).concat([current]);
+      const ref = Math.max(...weights);
+      if(ref <= target) return 100;
+      return Math.min(Math.max(((ref - current) / (ref - target)) * 100, 0), 100);
+    }
+    if(target <= 0) return null;
+    return Math.min(Math.max((current / target) * 100, 0), 100);
+  }
+
+  function rangeLabel(){
+    const from = rangeFromDate();
+    return from ? 'sinds ' + fmtDate(from) : 'sinds start';
   }
 
   function fmtDate(d){
@@ -507,17 +840,17 @@
     return dt.toLocaleDateString('nl-NL', {day:'2-digit', month:'short'});
   }
 
-  // Kijkt over ALLE oefeningen heen (niet per kaart) welke spiergroep het langst geleden
-  // (of nog nooit) getraind is, en stelt daar één concrete oefening voor. Groepen als
-  // 'quadriceps/bilspieren' worden samengevoegd onder hun eerste woord ('quadriceps') zodat
-  // verwante machines meetellen. Blijft stil (geen tip) zolang er geen echte achterstand is,
+  // Kijkt over ALLE oefeningen heen (niet per kaart) welke spiergroep-categorie het
+  // langst geleden (of nog nooit) getraind is, en stelt daar één concrete oefening voor.
+  // Groepeert op de vaste muscleCategory (niet meer het vrije muscleGroup-label: anders
+  // telden oefeningen zonder ingevuld label nooit mee, en dat label is nu sowieso alleen
+  // nog een weergavedetail). Blijft stil (geen tip) zolang er geen echte achterstand is,
   // zodat het geen ruis wordt als je redelijk gelijkmatig traint.
   function computeTopTip(){
     const todayD = new Date(todayStr() + 'T00:00:00');
     const groups = {};
     exercises.forEach(ex => {
-      if(!ex.muscleGroup) return;
-      const key = ex.muscleGroup.split('/')[0].trim().toLowerCase();
+      const key = muscleCat(ex);
       const exLogs = logsFor(ex.id);
       const lastDate = exLogs.length ? exLogs[exLogs.length - 1].date : null;
       if(!groups[key]) groups[key] = { lastDate: null, exercises: [] };
@@ -540,7 +873,7 @@
 
     const g = groups[worstKey];
     const target = g.exercises.slice().sort((a, b) => a.logCount - b.logCount)[0];
-    const label = worstKey.charAt(0).toUpperCase() + worstKey.slice(1);
+    const label = MUSCLE_LABELS[worstKey] || worstKey;
     const whenText = worstDays === Infinity ? 'nog nooit getraind' : worstDays + ' dagen niet getraind';
     return label + ' ' + whenText + '. Misschien een moment voor ' + target.name + ' de komende sessie.';
   }
@@ -554,35 +887,146 @@
     el.style.display = 'flex';
   }
 
+  // Maandag van de huidige week (lokale datum, niet UTC-gevoelig omdat todayStr() al
+  // een losse datumstring is). Reset dus elke maandagochtend vanzelf, geen aparte vlag nodig.
+  function weekStartDate(){
+    const d = new Date(todayStr() + 'T00:00:00');
+    const day = d.getDay();
+    const diff = day === 0 ? 6 : day - 1;
+    d.setDate(d.getDate() - diff);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // 80/20-weekvoortgang: per esthetische kernprikkel checken of er deze week (sinds
+  // maandag) minstens één sessie is gelogd bij een oefening die daaraan gekoppeld is.
+  // Alleen relevant zodra je minstens één oefening hebt getagd; anders blijft het blok
+  // helemaal weg in plaats van eeuwig een ongebruikt "0/5" te tonen.
+  function computeWeekFocus(){
+    const tagged = exercises.filter(e => e.aestheticPattern);
+    if(tagged.length === 0) return null;
+    const from = weekStartDate();
+    return AESTHETIC_PATTERNS.map(p => {
+      const exIds = tagged.filter(e => e.aestheticPattern === p.key).map(e => e.id);
+      const done = exIds.some(id => logsFor(id).some(l => l.date >= from));
+      return { key: p.key, label: p.label, done };
+    });
+  }
+
+  function renderWeekFocus(){
+    const wrap = document.getElementById('week-focus');
+    const items = computeWeekFocus();
+    if(!items){ wrap.style.display = 'none'; return; }
+    const doneCount = items.filter(i => i.done).length;
+    document.getElementById('week-focus-count').textContent = doneCount + '/' + items.length + ' deze week';
+    document.getElementById('week-focus-dots').innerHTML = items.map(i =>
+      `<span class="week-focus-item ${i.done ? 'done' : ''}"><span class="week-focus-dot"></span>${escapeHtml(i.label)}</span>`
+    ).join('');
+    wrap.style.display = 'block';
+  }
+
+  function byName(a, b){
+    return a.name.localeCompare(b.name, 'nl', {sensitivity:'base'});
+  }
+
+  // Gepinde oefeningen eerst, daarbinnen alfabetisch.
+  function byPinnedThenName(a, b){
+    const pa = a.pinned ? 0 : 1, pb = b.pinned ? 0 : 1;
+    if(pa !== pb) return pa - pb;
+    return byName(a, b);
+  }
+
+  function doneToday(exId){
+    const t = todayStr();
+    return logsFor(exId).some(l => l.date === t);
+  }
+
   function render(){
     renderTopTip();
+    renderWeekFocus();
     const list = document.getElementById('list');
     list.innerHTML = '';
     if(exercises.length === 0){
       list.innerHTML = '<div class="empty">Nog geen oefeningen. Voeg er een toe hieronder.</div>';
       return;
     }
-    const sorted = [...exercises].sort((a, b) => a.name.localeCompare(b.name, 'nl', {sensitivity:'base'}));
-    sorted.forEach(ex => {
+
+    if(viewMode === 'gepind'){
+      const pinned = exercises.filter(e => e.pinned).sort(byName);
+      if(pinned.length === 0){
+        list.innerHTML = '<div class="empty">Nog geen oefeningen met een sterretje. Tik op een ster om er een vast te zetten.</div>';
+        return;
+      }
+      pinned.forEach(ex => list.appendChild(buildCard(ex)));
+    }else if(viewMode === 'spiergroep'){
+      // Binnen een spiergroep-indeling zou "gepind naar boven" de groepering juist
+      // stukmaken, dus daar blijft de oefening in zijn eigen groep staan (het gele
+      // sterretje blijft natuurlijk zichtbaar).
+      const groups = {};
+      exercises.forEach(e => {
+        const cat = muscleCat(e);
+        (groups[cat] = groups[cat] || []).push(e);
+      });
+      MUSCLE_ORDER.forEach(cat => {
+        if(!groups[cat]) return;
+        const h = document.createElement('div');
+        h.className = 'group-header';
+        h.textContent = cat;
+        list.appendChild(h);
+        groups[cat].sort(byName).forEach(ex => list.appendChild(buildCard(ex)));
+      });
+    }else if(viewMode === 'boven' || viewMode === 'onder'){
+      const allowed = viewMode === 'boven' ? SPLIT_UPPER : SPLIT_LOWER;
+      const filtered = exercises.filter(e => allowed.includes(muscleCat(e)));
+      if(filtered.length === 0){
+        list.innerHTML = `<div class="empty">Nog geen oefeningen bij ${viewMode === 'boven' ? 'bovenlichaam' : 'onderlichaam'}.</div>`;
+        return;
+      }
+      filtered.sort(byPinnedThenName).forEach(ex => list.appendChild(buildCard(ex)));
+    }else if(viewMode === 'vandaag'){
+      const sorted = [...exercises].sort((a, b) => {
+        const da = doneToday(a.id) ? 1 : 0, db = doneToday(b.id) ? 1 : 0;
+        if(da !== db) return da - db;
+        return byPinnedThenName(a, b);
+      });
+      sorted.forEach(ex => list.appendChild(buildCard(ex, true)));
+    }else{
+      [...exercises].sort(byPinnedThenName).forEach(ex => list.appendChild(buildCard(ex)));
+    }
+
+    exercises.forEach(ex => {
+      if(openCards[ex.id] && document.getElementById('chart-' + ex.id)) renderChart(ex.id);
+    });
+  }
+
+  function buildCard(ex, markToday){
       const card = document.createElement('div');
-      card.className = 'exercise-card' + (openCards[ex.id] ? ' open' : '');
+      const isDone = markToday && doneToday(ex.id);
+      card.className = 'exercise-card' + (openCards[ex.id] ? ' open' : '') + (isDone ? ' done-today' : '');
       card.dataset.exId = ex.id;
 
       const last = latestLog(ex.id);
+      const hasTarget = ex.targetWeight != null && !isNaN(ex.targetWeight);
       const pct = pctChange(ex.id);
-      const pctBarWidth = pct != null ? Math.min(Math.max(pct, 0), 100) : 0;
+      const goal = (hasTarget && last) ? goalPct(ex, last.weight) : null;
+      const barPct = goal != null ? goal : (pct != null ? Math.min(Math.max(pct, 0), 100) : 0);
+      const progressMeta = goal != null
+        ? `<span>${last.weight} / ${ex.targetWeight} kg doel</span>`
+        : (pct != null ? `<span>${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% ${rangeLabel()}</span>` : '');
 
       card.innerHTML = `
         <div class="card-head" data-toggle="${ex.id}">
           <div class="card-title">
-            <div class="name">${escapeHtml(ex.name)}</div>
-            <div class="meta">
-              ${ex.muscleGroup ? `<span>${escapeHtml(ex.muscleGroup)}</span>` : ''}
-              ${ex.machine ? `<span class="machine-tag">${escapeHtml(ex.machine)}</span>` : ''}
-              ${last ? `<span>${fmtDate(last.date)}</span>` : '<span>geen sessies</span>'}
-              ${pct != null ? `<span>${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% sinds start</span>` : ''}
+            <div class="name-row">
+              <button class="star ${ex.pinned ? 'on' : ''}" data-pin="${ex.id}" title="${ex.pinned ? 'Sterretje weghalen' : 'Sterretje geven'}" aria-label="${ex.pinned ? 'Sterretje weghalen' : 'Sterretje geven'}" aria-pressed="${ex.pinned ? 'true' : 'false'}">★</button>
+              <div class="name">${escapeHtml(ex.name)}</div>
             </div>
-            <div class="plate-bar"><div class="plate-bar-fill" style="width:${pctBarWidth}%"></div></div>
+            <div class="meta">
+              <span class="machine-tag">${escapeHtml(MUSCLE_LABELS[muscleCat(ex)] || muscleCat(ex))}</span>
+              ${ex.machine ? `<span class="machine-tag">${escapeHtml(ex.machine)}</span>` : ''}
+              ${isDone ? '<span class="done-mark">✓ vandaag</span>' : (last ? `<span>${fmtDate(last.date)}</span>` : '<span>geen sessies</span>')}
+              ${progressMeta}
+            </div>
+            <div class="plate-bar"><div class="plate-bar-fill" style="width:${barPct}%"></div></div>
           </div>
           <div class="card-right">
             <div class="weight-now">${last ? last.weight : '–'}<span> kg</span></div>
@@ -603,31 +1047,42 @@
             <div class="field" style="flex:2;"><label>Toestelnr. (optioneel)</label><input id="in-machine-${ex.id}" value="${ex.machine || ''}"></div>
             <div class="field" style="flex:2;"><label>Notitie</label><input id="in-note-${ex.id}" placeholder="bv. zwaar, tempo, pijntje"></div>
           </div>
+          <div class="row">
+            <div class="field" style="flex:2;"><label>Bankstand (optioneel)</label><input id="in-bench-${ex.id}" placeholder="bv. stand 3"></div>
+            <div class="field" style="flex:2;"><label>Tempo (optioneel)</label><input id="in-tempo-${ex.id}" placeholder="bv. 3-2-1"></div>
+          </div>
           <div class="actions">
             <button class="ghost" data-delete-ex="${ex.id}">Oefening verwijderen</button>
             <button class="primary" data-save-log="${ex.id}">Sessie opslaan</button>
           </div>
-          <span class="settings-toggle" data-settings-toggle="${ex.id}">instellingen (doel reps/sets, stapgrootte)</span>
+          <span class="settings-toggle" data-settings-toggle="${ex.id}">instellingen (naam, toestel, spiergroep, doelen)</span>
           <div class="settings-row" id="settings-${ex.id}">
+            <div class="field" style="flex:2;min-width:140px;"><label>Naam</label><input id="cfg-name-${ex.id}" value="${escapeHtml(ex.name)}"></div>
+            <div class="field"><label>Toestelnr.</label><input id="cfg-machine-${ex.id}" value="${escapeHtml(ex.machine || '')}"></div>
+            <div class="field"><label>Spiergroep</label><select id="cfg-category-${ex.id}">${categoryOptions(muscleCat(ex))}</select></div>
+            <div class="field"><label>Label (optioneel)</label><input id="cfg-label-${ex.id}" value="${escapeHtml(ex.muscleGroup || '')}"></div>
             <div class="field"><label>Doel reps</label><input type="number" id="cfg-reps-${ex.id}" value="${ex.targetReps}"></div>
             <div class="field"><label>Doel sets</label><input type="number" id="cfg-sets-${ex.id}" value="${ex.targetSets}"></div>
             <div class="field"><label>Stap (kg)</label><input type="number" step="0.5" id="cfg-inc-${ex.id}" value="${ex.increment}"></div>
+            <div class="field"><label>Doelgewicht (optioneel)</label><input type="number" step="0.5" id="cfg-target-${ex.id}" value="${ex.targetWeight != null ? ex.targetWeight : ''}"></div>
+            <div class="field"><label>Esthetische focus (optioneel)</label><select id="cfg-aesthetic-${ex.id}"><option value="">Geen</option>${AESTHETIC_PATTERNS.map(p => `<option value="${p.key}" ${ex.aestheticPattern === p.key ? 'selected' : ''}>${p.label}</option>`).join('')}</select></div>
+            <div class="field" style="flex-direction:row;align-items:center;gap:6px;min-width:180px;">
+              <input type="checkbox" id="cfg-assisted-${ex.id}" style="width:auto;" ${ex.isAssisted ? 'checked' : ''}>
+              <label style="text-transform:none;font-size:12px;">Assisted (minder gewicht = beter)</label>
+            </div>
             <button class="ghost" data-save-cfg="${ex.id}" style="align-self:flex-end;">Bewaar instellingen</button>
           </div>
         </div></div>
       `;
-      list.appendChild(card);
-      if(openCards[ex.id]){
-        renderChart(ex.id);
-      }
-    });
+      return card;
   }
+
+  const SUGGESTION_ICON = { up:'↑', hold:'↻', plateau:'≈' };
 
   function renderSuggestion(ex){
     const s = suggestionFor(ex);
-    const icon = s.type === 'up' ? '↑' : s.type === 'hold' ? '→' : '•';
-    const tip = techniqueTips[ex.id];
-    return `<div class="suggestion ${s.type}"><span>${icon}</span><span>${escapeHtml(s.text)}${tip ? `<br><span class="technique-tip">${escapeHtml(tip)}</span>` : ''}</span></div>`;
+    if(!s) return '';
+    return `<div class="suggestion ${s.type}"><span>${SUGGESTION_ICON[s.type] || '↑'}</span><span>${escapeHtml(s.text)}</span></div>`;
   }
 
   function renderLogTable(ex){
@@ -635,12 +1090,14 @@
     if(l.length === 0) return '';
     const rows = l.map(log => {
       const pr = isPR(ex.id, log);
+      const machineText = log.machine ? log.machine : (ex.machine || '–');
+      const extra = [log.bench, log.tempo].filter(Boolean).join(' · ');
       return `<tr>
         <td>${fmtDate(log.date)}</td>
         <td class="${pr ? 'weight-pr' : ''}">${log.weight} kg</td>
         <td>${log.sets != null ? log.sets : '–'}</td>
         <td>${log.reps != null ? log.reps : '–'}</td>
-        <td>${log.machine ? log.machine : (ex.machine || '–')}</td>
+        <td>${machineText}${extra ? ' · ' + escapeHtml(extra) : ''}</td>
         <td class="row-del-cell"><button class="ghost row-del" data-delete-log="${log.id}" title="Sessie verwijderen" aria-label="Sessie verwijderen">&times;</button></td>
       </tr>`;
     }).join('');
@@ -653,7 +1110,7 @@
   function renderChart(exId){
     const canvas = document.getElementById('chart-' + exId);
     if(!canvas || typeof Chart === 'undefined') return;
-    const l = logsFor(exId);
+    const l = logsInRange(exId);
     if(l.length === 0) return;
     if(charts[exId]){ charts[exId].destroy(); }
     charts[exId] = new Chart(canvas.getContext('2d'), {
@@ -702,6 +1159,19 @@
   }
 
   document.getElementById('list').addEventListener('click', async (e) => {
+    // Sterretje eerst afhandelen: de knop zit binnen de klikbare kaartkop, dus
+    // zonder deze check zou het openklappen van de kaart de pin-actie opslokken.
+    const pinBtn = e.target.closest('[data-pin]');
+    if(pinBtn){
+      const id = pinBtn.dataset.pin;
+      const ex = exercises.find(x => x.id === id);
+      if(ex){
+        ex.pinned = !ex.pinned;
+        await saveExercises();
+        render();
+      }
+      return;
+    }
     const toggle = e.target.closest('[data-toggle]');
     if(toggle){
       const id = toggle.dataset.toggle;
@@ -724,6 +1194,8 @@
       const reps = document.getElementById('in-reps-' + id).value;
       const machine = document.getElementById('in-machine-' + id).value.trim();
       const note = document.getElementById('in-note-' + id).value.trim();
+      const bench = document.getElementById('in-bench-' + id).value.trim();
+      const tempo = document.getElementById('in-tempo-' + id).value.trim();
       if(isNaN(weight)){ alert('Vul een gewicht in.'); return; }
       logs.push({
         id: 'log-' + Date.now(),
@@ -734,6 +1206,8 @@
         reps: reps ? parseInt(reps) : null,
         machine: machine || null,
         note,
+        bench: bench || null,
+        tempo: tempo || null,
       });
       await saveLogs();
       render();
@@ -745,9 +1219,20 @@
     if(saveCfgBtn){
       const id = saveCfgBtn.dataset.saveCfg;
       const ex = exercises.find(x => x.id === id);
+      const newName = document.getElementById('cfg-name-' + id).value.trim();
+      if(newName) ex.name = newName;
+      ex.machine = document.getElementById('cfg-machine-' + id).value.trim();
+      ex.muscleCategory = document.getElementById('cfg-category-' + id).value;
+      const newLabel = document.getElementById('cfg-label-' + id).value.trim();
+      ex.muscleGroup = newLabel || MUSCLE_LABELS[ex.muscleCategory];
       ex.targetReps = parseInt(document.getElementById('cfg-reps-' + id).value) || ex.targetReps;
       ex.targetSets = parseInt(document.getElementById('cfg-sets-' + id).value) || ex.targetSets;
       ex.increment = parseFloat(document.getElementById('cfg-inc-' + id).value) || ex.increment;
+      const targetRaw = document.getElementById('cfg-target-' + id).value;
+      ex.targetWeight = targetRaw !== '' ? parseFloat(targetRaw) : null;
+      const aesthetic = document.getElementById('cfg-aesthetic-' + id).value;
+      ex.aestheticPattern = aesthetic || null;
+      ex.isAssisted = document.getElementById('cfg-assisted-' + id).checked;
       await saveExercises();
       render();
       openCards[id] = true;
@@ -782,17 +1267,69 @@
     const name = document.getElementById('new-ex-name').value.trim();
     const machine = document.getElementById('new-ex-machine').value.trim();
     const increment = parseFloat(document.getElementById('new-ex-increment').value) || 2.5;
-    const muscleGroup = document.getElementById('new-ex-muscle').value.trim();
+    const muscleCategory = document.getElementById('new-ex-category').value;
+    const muscleLabel = document.getElementById('new-ex-muscle').value.trim();
     if(!name){ alert('Vul een naam in.'); return; }
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
-    exercises.push({id, name, machine, increment, targetReps:8, targetSets:3, muscleGroup: muscleGroup || ''});
+    exercises.push({
+      id, name, machine, increment, targetReps:8, targetSets:3,
+      muscleCategory,
+      muscleGroup: muscleLabel || MUSCLE_LABELS[muscleCategory],
+      isAssisted:false, targetWeight:null, aestheticPattern:null,
+    });
     await saveExercises();
     document.getElementById('new-ex-name').value = '';
     document.getElementById('new-ex-machine').value = '';
     document.getElementById('new-ex-increment').value = '2.5';
     document.getElementById('new-ex-muscle').value = '';
+    document.getElementById('new-ex-category').value = 'borst';
     render();
   });
+
+  document.getElementById('view-mode').addEventListener('change', async (e) => {
+    viewMode = e.target.value;
+    await savePrefs();
+    render();
+  });
+
+  document.getElementById('range-mode').addEventListener('change', async (e) => {
+    rangeMode = e.target.value;
+    // Bij de eerste keer "Aangepast" een zinnig startpunt voorstellen (6 maanden terug)
+    // in plaats van een leeg datumveld dat stilletjes als "vanaf het begin" werkt.
+    if(rangeMode === 'custom' && !customFrom){
+      const d = new Date(todayStr() + 'T00:00:00');
+      d.setMonth(d.getMonth() - 6);
+      customFrom = d.toISOString().slice(0,10);
+    }
+    syncControls();
+    await savePrefs();
+    render();
+  });
+
+  document.getElementById('range-from').addEventListener('change', async (e) => {
+    customFrom = e.target.value;
+    await savePrefs();
+    render();
+  });
+
+  document.getElementById('export-btn').addEventListener('click', () => {
+    const payload = {
+      exportedAt: todayStr(),
+      exercises,
+      logs,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ijzerlog-export-' + todayStr() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('new-ex-category').innerHTML = categoryOptions('borst');
 
   loadAll();
 })();
