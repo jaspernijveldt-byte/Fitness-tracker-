@@ -129,6 +129,7 @@
     .star:hover{color:var(--star);border-color:transparent;}
   }
   .card-title .meta{font-size:12px;color:var(--text-dim);display:flex;gap:8px;flex-wrap:wrap;}
+  .last-date{color:var(--text);font-weight:600;}
   .machine-tag{
     background:var(--surface-2);
     border:1px solid var(--border);
@@ -384,6 +385,7 @@
       <option value="spiergroep">Spiergroep</option>
       <option value="boven">Bovenlichaam</option>
       <option value="onder">Onderlichaam</option>
+      <option value="laatst">Laatst gedaan</option>
       <option value="vandaag">Vandaag</option>
       <option value="gepind">Met sterretje</option>
     </select>
@@ -892,11 +894,6 @@
     return Math.min(Math.max((current / target) * 100, 0), 100);
   }
 
-  function rangeLabel(){
-    const from = rangeFromDate();
-    return from ? 'sinds ' + fmtDate(from) : 'sinds start';
-  }
-
   function fmtDate(d){
     const dt = new Date(d + 'T00:00:00');
     return dt.toLocaleDateString('nl-NL', {day:'2-digit', month:'short'});
@@ -1044,6 +1041,18 @@
         return;
       }
       filtered.sort(byPinnedThenName).forEach(ex => list.appendChild(buildCard(ex)));
+    }else if(viewMode === 'laatst'){
+      // Oudste laatste-sessie eerst (nog nooit gedaan telt als "oudst", dus helemaal
+      // bovenaan) zodat je in één oogopslag ziet wat allang niet meer aan de beurt is
+      // geweest. Bewust GEEN sterretjes-voorrang hier: dat zou de hele bedoeling van
+      // deze weergave (achterstand zien) juist verdoezelen.
+      const sorted = [...exercises].sort((a, b) => {
+        const da = latestLog(a.id), db = latestLog(b.id);
+        const ka = da ? da.date : '', kb = db ? db.date : '';
+        if(ka !== kb) return ka.localeCompare(kb);
+        return byName(a, b);
+      });
+      sorted.forEach(ex => list.appendChild(buildCard(ex)));
     }else if(viewMode === 'vandaag'){
       const sorted = [...exercises].sort((a, b) => {
         const da = doneToday(a.id) ? 1 : 0, db = doneToday(b.id) ? 1 : 0;
@@ -1073,7 +1082,7 @@
       const barPct = goal != null ? goal : (pct != null ? Math.min(Math.max(pct, 0), 100) : 0);
       const progressMeta = goal != null
         ? `<span>${last.weight} / ${ex.targetWeight} kg doel</span>`
-        : (pct != null ? `<span>${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% ${rangeLabel()}</span>` : '');
+        : (pct != null ? `<span>${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%</span>` : '');
 
       card.innerHTML = `
         <div class="card-head" data-toggle="${ex.id}">
@@ -1083,9 +1092,9 @@
               <div class="name">${escapeHtml(ex.name)}</div>
             </div>
             <div class="meta">
+              ${isDone ? '<span class="done-mark last-date">✓ vandaag</span>' : (last ? `<span class="last-date">${fmtDate(last.date)}</span>` : '<span class="last-date">geen sessies</span>')}
               <span class="machine-tag">${escapeHtml(MUSCLE_LABELS[muscleCat(ex)] || muscleCat(ex))}</span>
               ${ex.machine ? `<span class="machine-tag">${escapeHtml(ex.machine)}</span>` : ''}
-              ${isDone ? '<span class="done-mark">✓ vandaag</span>' : (last ? `<span>${fmtDate(last.date)}</span>` : '<span>geen sessies</span>')}
               ${progressMeta}
             </div>
             <div class="plate-bar"><div class="plate-bar-fill" style="width:${barPct}%"></div></div>
