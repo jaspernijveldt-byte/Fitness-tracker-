@@ -1015,9 +1015,10 @@
       const pct = pctChange(ex.id);
       const goal = (hasTarget && last) ? goalPct(ex, last.weight) : null;
       const barPct = goal != null ? goal : (pct != null ? Math.min(Math.max(pct, 0), 100) : 0);
+      const pctSpan = pct != null ? `<span>${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%</span>` : '';
       const progressMeta = goal != null
-        ? `<span>${last.weight} / ${ex.targetWeight} kg doel</span>`
-        : (pct != null ? `<span>${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%</span>` : '');
+        ? `<span>${last.weight} / ${ex.targetWeight} kg</span>${pctSpan}`
+        : pctSpan;
 
       card.innerHTML = `
         <div class="card-head" data-toggle="${ex.id}">
@@ -1053,8 +1054,7 @@
             <div class="field" style="flex:2;"><label>Notitie</label><input id="in-note-${ex.id}" placeholder="bv. zwaar, tempo, pijntje"></div>
           </div>
           <div class="row">
-            <div class="field" style="flex:2;"><label>Bankstand</label><input id="in-bench-${ex.id}" placeholder="bv. stand 3"></div>
-            <div class="field" style="flex:2;"><label>Tempo</label><input id="in-tempo-${ex.id}" placeholder="bv. 3-2-1"></div>
+            <div class="field"><label>Bankstand</label><input id="in-bench-${ex.id}" placeholder="bv. stand 3"></div>
           </div>
           <div class="actions">
             <button class="ghost" data-delete-ex="${ex.id}">Oefening verwijderen</button>
@@ -1095,7 +1095,7 @@
     const rows = l.map(log => {
       const pr = isPR(ex.id, log);
       const machineText = log.machine ? log.machine : (ex.machine || '–');
-      const extra = [log.bench, log.tempo].filter(Boolean).join(' · ');
+      const extra = log.bench || '';
       return `<tr>
         <td>${fmtDate(log.date)}</td>
         <td class="${pr ? 'weight-pr' : ''}">${log.weight} kg</td>
@@ -1213,7 +1213,6 @@
       const machine = document.getElementById('in-machine-' + id).value.trim();
       const note = document.getElementById('in-note-' + id).value.trim();
       const bench = document.getElementById('in-bench-' + id).value.trim();
-      const tempo = document.getElementById('in-tempo-' + id).value.trim();
       if(isNaN(weight)){ alert('Vul een gewicht in.'); return; }
       logs.push({
         id: 'log-' + Date.now(),
@@ -1225,7 +1224,6 @@
         machine: machine || null,
         note,
         bench: bench || null,
-        tempo: tempo || null,
       });
       await saveLogs();
       render();
