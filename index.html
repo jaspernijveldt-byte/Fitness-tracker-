@@ -230,6 +230,8 @@
   button:active{transform:scale(0.97);}
   button.primary{background:var(--accent);color:#14151a;border-color:var(--accent);}
   button.ghost{background:transparent;border-color:transparent;color:var(--text-dim);padding:6px 8px;}
+  a.video-link{display:inline-block;font-family:'Inter',sans-serif;font-weight:600;font-size:12px;border-radius:7px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-dim);padding:7px 12px;text-decoration:none;margin-bottom:12px;}
+  @media (hover:hover) and (pointer:fine){ a.video-link:hover{border-color:var(--accent);color:var(--text);} }
   .actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end;}
   .settings-toggle{font-size:11px;color:var(--text-dim);cursor:pointer;text-decoration:underline;margin-top:10px;display:inline-block;}
   .settings-row{display:none;gap:8px;margin-top:8px;}
@@ -490,6 +492,15 @@
     const detail = (ex.muscleGroup || '').trim();
     if(!detail || detail.toLowerCase() === catLabel.toLowerCase()) return catLabel;
     return catLabel + ' · ' + detail;
+  }
+
+  // Link naar een uitlegvideo: een handmatig gekozen YouTube-link (uit instellingen of
+  // import) heeft voorrang; zonder link valt dit terug op een kant-en-klare zoekopdracht
+  // zodat de knop altijd ergens naartoe leidt, ook voor nieuw toegevoegde oefeningen.
+  function videoUrlFor(ex){
+    const custom = (ex.youtubeUrl || '').trim();
+    if(custom) return custom;
+    return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(ex.name + ' oefening uitleg');
   }
 
   function categoryOptions(selected){
@@ -1040,6 +1051,7 @@
           </div>
         </div>
         <div class="card-body-wrap"><div class="card-body">
+          <a class="video-link" href="${videoUrlFor(ex)}" target="_blank" rel="noopener">▶ Bekijk uitleg</a>
           ${renderSuggestion(ex)}
           <canvas class="chart" id="chart-${ex.id}" height="60"></canvas>
           ${renderLogTable(ex)}
@@ -1064,6 +1076,7 @@
             <div class="field"><label>Doel sets</label><input type="number" id="cfg-sets-${ex.id}" value="${ex.targetSets}"></div>
             <div class="field"><label>Stap (kg)</label><input type="number" step="0.5" id="cfg-inc-${ex.id}" value="${ex.increment}"></div>
             <div class="field"><label>Doelgewicht</label><input type="number" step="0.5" id="cfg-target-${ex.id}" value="${ex.targetWeight != null ? ex.targetWeight : ''}"></div>
+            <div class="field" style="flex:2;min-width:200px;"><label>Uitleg-video (YouTube link)</label><input id="cfg-video-${ex.id}" value="${escapeHtml(ex.youtubeUrl || '')}" placeholder="https://www.youtube.com/..."></div>
             <div class="field" style="flex-direction:row;align-items:center;gap:6px;min-width:180px;">
               <input type="checkbox" id="cfg-assisted-${ex.id}" style="width:auto;" ${ex.isAssisted ? 'checked' : ''}>
               <label style="text-transform:none;font-size:12px;">Assisted (minder gewicht = beter)</label>
@@ -1227,6 +1240,7 @@
       if(newName) ex.name = newName;
       ex.machine = document.getElementById('cfg-machine-' + id).value.trim();
       ex.bench = document.getElementById('cfg-bench-' + id).value.trim();
+      ex.youtubeUrl = document.getElementById('cfg-video-' + id).value.trim();
       ex.muscleCategory = document.getElementById('cfg-category-' + id).value;
       const newLabel = document.getElementById('cfg-label-' + id).value.trim();
       ex.muscleGroup = newLabel || MUSCLE_LABELS[ex.muscleCategory];
