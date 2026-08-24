@@ -1049,13 +1049,6 @@
             <div class="field"><label>Sets</label><input type="number" id="in-sets-${ex.id}" value="${ex.targetSets}"></div>
             <div class="field"><label>Reps</label><input type="number" id="in-reps-${ex.id}" value=""></div>
           </div>
-          <div class="row">
-            <div class="field" style="flex:2;"><label>Toestelnr.</label><input id="in-machine-${ex.id}" value="${ex.machine || ''}"></div>
-            <div class="field" style="flex:2;"><label>Notitie</label><input id="in-note-${ex.id}" placeholder="bv. zwaar, tempo, pijntje"></div>
-          </div>
-          <div class="row">
-            <div class="field"><label>Bankstand</label><input id="in-bench-${ex.id}" placeholder="bv. stand 3"></div>
-          </div>
           <div class="actions">
             <button class="ghost" data-delete-ex="${ex.id}">Oefening verwijderen</button>
             <button class="primary" data-save-log="${ex.id}">Sessie opslaan</button>
@@ -1064,6 +1057,7 @@
           <div class="settings-row" id="settings-${ex.id}">
             <div class="field" style="flex:2;min-width:140px;"><label>Naam</label><input id="cfg-name-${ex.id}" value="${escapeHtml(ex.name)}"></div>
             <div class="field"><label>Toestelnr.</label><input id="cfg-machine-${ex.id}" value="${escapeHtml(ex.machine || '')}"></div>
+            <div class="field"><label>Bankstand</label><input id="cfg-bench-${ex.id}" value="${escapeHtml(ex.bench || '')}" placeholder="bv. stand 3"></div>
             <div class="field"><label>Spiergroep</label><select id="cfg-category-${ex.id}">${categoryOptions(muscleCat(ex))}</select></div>
             <div class="field"><label>Specifieke spier</label><input id="cfg-label-${ex.id}" value="${escapeHtml(ex.muscleGroup || '')}" placeholder="bv. hamstrings, liezen"></div>
             <div class="field"><label>Doel reps</label><input type="number" id="cfg-reps-${ex.id}" value="${ex.targetReps}"></div>
@@ -1095,7 +1089,7 @@
     const rows = l.map(log => {
       const pr = isPR(ex.id, log);
       const machineText = log.machine ? log.machine : (ex.machine || '–');
-      const extra = log.bench || '';
+      const extra = log.bench || ex.bench || '';
       return `<tr>
         <td>${fmtDate(log.date)}</td>
         <td class="${pr ? 'weight-pr' : ''}">${log.weight} kg</td>
@@ -1210,9 +1204,6 @@
       const weight = parseFloat(document.getElementById('in-weight-' + id).value);
       const sets = document.getElementById('in-sets-' + id).value;
       const reps = document.getElementById('in-reps-' + id).value;
-      const machine = document.getElementById('in-machine-' + id).value.trim();
-      const note = document.getElementById('in-note-' + id).value.trim();
-      const bench = document.getElementById('in-bench-' + id).value.trim();
       if(isNaN(weight)){ alert('Vul een gewicht in.'); return; }
       logs.push({
         id: 'log-' + Date.now(),
@@ -1221,9 +1212,6 @@
         weight,
         sets: sets ? parseInt(sets) : null,
         reps: reps ? parseInt(reps) : null,
-        machine: machine || null,
-        note,
-        bench: bench || null,
       });
       await saveLogs();
       render();
@@ -1238,6 +1226,7 @@
       const newName = document.getElementById('cfg-name-' + id).value.trim();
       if(newName) ex.name = newName;
       ex.machine = document.getElementById('cfg-machine-' + id).value.trim();
+      ex.bench = document.getElementById('cfg-bench-' + id).value.trim();
       ex.muscleCategory = document.getElementById('cfg-category-' + id).value;
       const newLabel = document.getElementById('cfg-label-' + id).value.trim();
       ex.muscleGroup = newLabel || MUSCLE_LABELS[ex.muscleCategory];
