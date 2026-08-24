@@ -144,7 +144,7 @@
   .chev{transition:transform 200ms var(--ease-in-out);color:var(--text-dim);}
   .exercise-card.open .chev{transform:rotate(180deg);}
 
-  .plate-bar{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:6px;width:100%;}
+  .plate-bar{height:5px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:6px;width:100%;}
   .plate-bar-fill{height:100%;background:var(--accent);border-radius:3px;transition:width 300ms var(--ease-out);}
 
   /* grid-rows trick: animates height without measuring it in JS, stays interruptible (CSS transition, not keyframes) */
@@ -301,37 +301,6 @@
     flex-shrink:0;
   }
 
-  /* Week-focus (80/20): bewust geen letterlijke ronde SVG-ring, dat zou een tweede
-     decoratief signature-element naast de accentkleur worden. Vijf rustige bolletjes
-     in een rij, zelfde stille visuele taal als de rest van de app. */
-  .week-focus{
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:8px;
-    padding:10px 14px;
-    margin-bottom:16px;
-  }
-  .week-focus-head{
-    display:flex;
-    justify-content:space-between;
-    align-items:baseline;
-    margin-bottom:8px;
-  }
-  .week-focus-label{
-    font-family:'Barlow Condensed',sans-serif;
-    text-transform:uppercase;
-    letter-spacing:0.04em;
-    font-size:11px;
-    color:var(--text-dim);
-    font-weight:700;
-  }
-  .week-focus-count{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);font-variant-numeric:tabular-nums;}
-  .week-focus-dots{display:flex;gap:10px;flex-wrap:wrap;}
-  .week-focus-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-dim);}
-  .week-focus-dot{width:8px;height:8px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);flex-shrink:0;}
-  .week-focus-item.done .week-focus-dot{background:var(--accent);border-color:var(--accent);}
-  .week-focus-item.done{color:var(--text);}
-
   .add-exercise{
     background:var(--surface);
     border:1px dashed var(--border);
@@ -369,13 +338,6 @@
   <span id="top-tip-text"></span>
 </div>
 
-<div id="week-focus" class="week-focus" style="display:none;">
-  <div class="week-focus-head">
-    <span class="week-focus-label">Week</span>
-    <span class="week-focus-count" id="week-focus-count"></span>
-  </div>
-  <div class="week-focus-dots" id="week-focus-dots"></div>
-</div>
 
 <div class="controls">
   <div class="control">
@@ -429,8 +391,8 @@
       <select id="new-ex-category"></select>
     </div>
     <div class="field">
-      <label>Label (optioneel)</label>
-      <input id="new-ex-muscle" placeholder="bv. hamstrings">
+      <label>Specifieke spier</label>
+      <input id="new-ex-muscle" placeholder="bv. hamstrings, liezen">
     </div>
   </div>
   <div class="actions">
@@ -519,6 +481,17 @@
     return ex.muscleCategory || legacyMuscleCat(ex);
   }
 
+  // Eén pil i.p.v. twee: de categorie stuurt nog steeds alle logica, maar het losse
+  // detail-label (bijv. "hamstrings") wordt er weer bij getoond zodra dat iets toevoegt
+  // boven de categorienaam zelf. Zo blijft de kaart rustig (één vlakje) maar zie je toch
+  // welke specifieke spier het is, niet alleen de brede groep.
+  function categoryPillText(ex){
+    const catLabel = MUSCLE_LABELS[muscleCat(ex)] || muscleCat(ex);
+    const detail = (ex.muscleGroup || '').trim();
+    if(!detail || detail.toLowerCase() === catLabel.toLowerCase()) return catLabel;
+    return catLabel + ' · ' + detail;
+  }
+
   function categoryOptions(selected){
     return MUSCLE_ORDER.map(c =>
       `<option value="${c}" ${c === selected ? 'selected' : ''}>${MUSCLE_LABELS[c]}</option>`
@@ -533,17 +506,6 @@
   // wordt gehaald) de app spreekt van een plateau en tempo-overload voorstelt in plaats
   // van te blijven aandringen op meer kilo's.
   const PLATEAU_SESSIONS = 4;
-
-  // Esthetische kernprikkels voor de wekelijkse focus-check (80/20-principe). Alleen
-  // oefeningen die hier expliciet aan gekoppeld zijn (via instellingen) tellen mee; de
-  // rest van de lijst blijft erbuiten. Geen apart tagveld nodig als je dit niet gebruikt.
-  const AESTHETIC_PATTERNS = [
-    {key:'upper_chest', label:'Bovenborst'},
-    {key:'lat_width', label:'Rugbreedte'},
-    {key:'lateral_delts', label:'Schouderbreedte'},
-    {key:'core', label:'Rompdikte'},
-    {key:'mid_back', label:'Rugdikte'},
-  ];
 
   // Nieuwe standaardoefeningen die aan een bestaande, al opgeslagen lijst worden toegevoegd
   // (de seedExercises hierboven worden alleen gebruikt bij een compleet lege/nieuwe installatie)
@@ -650,12 +612,23 @@
   async function migrate(){
     let changed = false;
 
-    exercisesToBackfill.forEach(def => {
-      if(!exercises.find(e => e.id === def.id)){
-        exercises.push({...def});
-        changed = true;
-      }
-    });
+    // Eenmalig, niet bij elke load: anders komt een bewust verwijderde standaardoefening
+    // (bijv. Jasper haalde 'Calf raise' weg omdat hij 'Seated Calf' gebruikt) na een
+    // refresh steeds weer terug als een zombie-entry.
+    let backfillDone = false;
+    try{
+      const flag = await window.storage.get('basicfit-migration-backfill-v1');
+      backfillDone = flag.value === 'done';
+    }catch(e){ backfillDone = false; }
+    if(!backfillDone){
+      exercisesToBackfill.forEach(def => {
+        if(!exercises.find(e => e.id === def.id)){
+          exercises.push({...def});
+          changed = true;
+        }
+      });
+      await window.storage.set('basicfit-migration-backfill-v1', 'done');
+    }
 
     exercises.forEach(e => {
       if(!e.muscleGroup && muscleGroupById[e.id]){
@@ -946,43 +919,6 @@
     el.style.display = 'flex';
   }
 
-  // Maandag van de huidige week (lokale datum, niet UTC-gevoelig omdat todayStr() al
-  // een losse datumstring is). Reset dus elke maandagochtend vanzelf, geen aparte vlag nodig.
-  function weekStartDate(){
-    const d = new Date(todayStr() + 'T00:00:00');
-    const day = d.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    d.setDate(d.getDate() - diff);
-    return d.toISOString().slice(0, 10);
-  }
-
-  // 80/20-weekvoortgang: per esthetische kernprikkel checken of er deze week (sinds
-  // maandag) minstens één sessie is gelogd bij een oefening die daaraan gekoppeld is.
-  // Alleen relevant zodra je minstens één oefening hebt getagd; anders blijft het blok
-  // helemaal weg in plaats van eeuwig een ongebruikt "0/5" te tonen.
-  function computeWeekFocus(){
-    const tagged = exercises.filter(e => e.aestheticPattern);
-    if(tagged.length === 0) return null;
-    const from = weekStartDate();
-    return AESTHETIC_PATTERNS.map(p => {
-      const exIds = tagged.filter(e => e.aestheticPattern === p.key).map(e => e.id);
-      const done = exIds.some(id => logsFor(id).some(l => l.date >= from));
-      return { key: p.key, label: p.label, done };
-    });
-  }
-
-  function renderWeekFocus(){
-    const wrap = document.getElementById('week-focus');
-    const items = computeWeekFocus();
-    if(!items){ wrap.style.display = 'none'; return; }
-    const doneCount = items.filter(i => i.done).length;
-    document.getElementById('week-focus-count').textContent = doneCount + '/' + items.length + ' deze week';
-    document.getElementById('week-focus-dots').innerHTML = items.map(i =>
-      `<span class="week-focus-item ${i.done ? 'done' : ''}"><span class="week-focus-dot"></span>${escapeHtml(i.label)}</span>`
-    ).join('');
-    wrap.style.display = 'block';
-  }
-
   function byName(a, b){
     return a.name.localeCompare(b.name, 'nl', {sensitivity:'base'});
   }
@@ -1001,7 +937,6 @@
 
   function render(){
     renderTopTip();
-    renderWeekFocus();
     const list = document.getElementById('list');
     list.innerHTML = '';
     if(exercises.length === 0){
@@ -1093,8 +1028,7 @@
             </div>
             <div class="meta">
               ${isDone ? '<span class="done-mark last-date">✓ vandaag</span>' : (last ? `<span class="last-date">${fmtDate(last.date)}</span>` : '<span class="last-date">geen sessies</span>')}
-              <span class="machine-tag">${escapeHtml(MUSCLE_LABELS[muscleCat(ex)] || muscleCat(ex))}</span>
-              ${ex.machine ? `<span class="machine-tag">${escapeHtml(ex.machine)}</span>` : ''}
+              <span class="machine-tag">${escapeHtml(categoryPillText(ex))}</span>
               ${progressMeta}
             </div>
             <div class="plate-bar"><div class="plate-bar-fill" style="width:${barPct}%"></div></div>
@@ -1115,12 +1049,12 @@
             <div class="field"><label>Reps</label><input type="number" id="in-reps-${ex.id}" value=""></div>
           </div>
           <div class="row">
-            <div class="field" style="flex:2;"><label>Toestelnr. (optioneel)</label><input id="in-machine-${ex.id}" value="${ex.machine || ''}"></div>
+            <div class="field" style="flex:2;"><label>Toestelnr.</label><input id="in-machine-${ex.id}" value="${ex.machine || ''}"></div>
             <div class="field" style="flex:2;"><label>Notitie</label><input id="in-note-${ex.id}" placeholder="bv. zwaar, tempo, pijntje"></div>
           </div>
           <div class="row">
-            <div class="field" style="flex:2;"><label>Bankstand (optioneel)</label><input id="in-bench-${ex.id}" placeholder="bv. stand 3"></div>
-            <div class="field" style="flex:2;"><label>Tempo (optioneel)</label><input id="in-tempo-${ex.id}" placeholder="bv. 3-2-1"></div>
+            <div class="field" style="flex:2;"><label>Bankstand</label><input id="in-bench-${ex.id}" placeholder="bv. stand 3"></div>
+            <div class="field" style="flex:2;"><label>Tempo</label><input id="in-tempo-${ex.id}" placeholder="bv. 3-2-1"></div>
           </div>
           <div class="actions">
             <button class="ghost" data-delete-ex="${ex.id}">Oefening verwijderen</button>
@@ -1131,12 +1065,11 @@
             <div class="field" style="flex:2;min-width:140px;"><label>Naam</label><input id="cfg-name-${ex.id}" value="${escapeHtml(ex.name)}"></div>
             <div class="field"><label>Toestelnr.</label><input id="cfg-machine-${ex.id}" value="${escapeHtml(ex.machine || '')}"></div>
             <div class="field"><label>Spiergroep</label><select id="cfg-category-${ex.id}">${categoryOptions(muscleCat(ex))}</select></div>
-            <div class="field"><label>Label (optioneel)</label><input id="cfg-label-${ex.id}" value="${escapeHtml(ex.muscleGroup || '')}"></div>
+            <div class="field"><label>Specifieke spier</label><input id="cfg-label-${ex.id}" value="${escapeHtml(ex.muscleGroup || '')}" placeholder="bv. hamstrings, liezen"></div>
             <div class="field"><label>Doel reps</label><input type="number" id="cfg-reps-${ex.id}" value="${ex.targetReps}"></div>
             <div class="field"><label>Doel sets</label><input type="number" id="cfg-sets-${ex.id}" value="${ex.targetSets}"></div>
             <div class="field"><label>Stap (kg)</label><input type="number" step="0.5" id="cfg-inc-${ex.id}" value="${ex.increment}"></div>
-            <div class="field"><label>Doelgewicht (optioneel)</label><input type="number" step="0.5" id="cfg-target-${ex.id}" value="${ex.targetWeight != null ? ex.targetWeight : ''}"></div>
-            <div class="field"><label>Esthetische focus (optioneel)</label><select id="cfg-aesthetic-${ex.id}"><option value="">Geen</option>${AESTHETIC_PATTERNS.map(p => `<option value="${p.key}" ${ex.aestheticPattern === p.key ? 'selected' : ''}>${p.label}</option>`).join('')}</select></div>
+            <div class="field"><label>Doelgewicht</label><input type="number" step="0.5" id="cfg-target-${ex.id}" value="${ex.targetWeight != null ? ex.targetWeight : ''}"></div>
             <div class="field" style="flex-direction:row;align-items:center;gap:6px;min-width:180px;">
               <input type="checkbox" id="cfg-assisted-${ex.id}" style="width:auto;" ${ex.isAssisted ? 'checked' : ''}>
               <label style="text-transform:none;font-size:12px;">Assisted (minder gewicht = beter)</label>
@@ -1184,18 +1117,32 @@
     const l = logsInRange(exId);
     if(l.length === 0) return;
     if(charts[exId]){ charts[exId].destroy(); }
+    const ex = exercises.find(x => x.id === exId);
+    const hasTarget = ex && ex.targetWeight != null && !isNaN(ex.targetWeight);
+    const datasets = [{
+      data: l.map(x => x.weight),
+      borderColor: '#a8d94a',
+      backgroundColor: 'rgba(168,217,74,0.14)',
+      pointBackgroundColor: '#a8d94a',
+      tension: 0.25,
+      fill: true,
+    }];
+    if(hasTarget){
+      datasets.push({
+        data: l.map(() => ex.targetWeight),
+        borderColor: '#9aa0ab',
+        borderDash: [6, 4],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+      });
+    }
     charts[exId] = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: {
         labels: l.map(x => fmtDate(x.date)),
-        datasets: [{
-          data: l.map(x => x.weight),
-          borderColor: '#a8d94a',
-          backgroundColor: 'rgba(168,217,74,0.14)',
-          pointBackgroundColor: '#a8d94a',
-          tension: 0.25,
-          fill: true,
-        }]
+        datasets,
       },
       options: {
         plugins: {
@@ -1301,8 +1248,6 @@
       ex.increment = parseFloat(document.getElementById('cfg-inc-' + id).value) || ex.increment;
       const targetRaw = document.getElementById('cfg-target-' + id).value;
       ex.targetWeight = targetRaw !== '' ? parseFloat(targetRaw) : null;
-      const aesthetic = document.getElementById('cfg-aesthetic-' + id).value;
-      ex.aestheticPattern = aesthetic || null;
       ex.isAssisted = document.getElementById('cfg-assisted-' + id).checked;
       await saveExercises();
       render();
@@ -1346,7 +1291,7 @@
       id, name, machine, increment, targetReps:8, targetSets:3,
       muscleCategory,
       muscleGroup: muscleLabel || MUSCLE_LABELS[muscleCategory],
-      isAssisted:false, targetWeight:null, aestheticPattern:null,
+      isAssisted:false, targetWeight:null,
     });
     await saveExercises();
     document.getElementById('new-ex-name').value = '';
