@@ -274,6 +274,21 @@
   }
   .control select:focus,.control input:focus{outline:none;border-color:var(--accent);}
 
+  .filter-toggles{display:flex;gap:6px;}
+  .filter-toggle{
+    display:flex;align-items:center;gap:6px;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:8px 10px;
+    font-size:13px;
+    flex:1;
+    cursor:pointer;
+    user-select:none;
+  }
+  .filter-toggle input{width:auto;margin:0;accent-color:var(--accent);}
+  .filter-toggle:has(input:checked){border-color:var(--accent);color:var(--accent);}
+
   .group-header{
     font-family:'Barlow Condensed',sans-serif;
     text-transform:uppercase;
@@ -350,9 +365,14 @@
       <option value="boven">Bovenlichaam</option>
       <option value="onder">Onderlichaam</option>
       <option value="laatst">Laatst gedaan</option>
-      <option value="vandaag">Vandaag</option>
-      <option value="gepind">Met sterretje</option>
     </select>
+  </div>
+  <div class="control filter-control">
+    <label>Filters</label>
+    <div class="filter-toggles">
+      <label class="filter-toggle"><input type="checkbox" id="filter-today"> Vandaag</label>
+      <label class="filter-toggle"><input type="checkbox" id="filter-pinned"> Sterretje</label>
+    </div>
   </div>
   <div class="control">
     <label for="range-mode">Progressie vanaf</label>
@@ -563,6 +583,8 @@
   let viewMode = 'alfabetisch';
   let rangeMode = 'all';
   let customFrom = '';
+  let filterToday = false;
+  let filterPinned = false;
 
   function setStatus(msg){
     document.getElementById('status').textContent = msg;
@@ -593,7 +615,14 @@
       if(p.viewMode) viewMode = p.viewMode;
       if(p.rangeMode) rangeMode = p.rangeMode;
       if(p.customFrom) customFrom = p.customFrom;
+      if(typeof p.filterToday === 'boolean') filterToday = p.filterToday;
+      if(typeof p.filterPinned === 'boolean') filterPinned = p.filterPinned;
     }catch(e){ /* nog geen voorkeuren opgeslagen, standaardwaarden blijven staan */ }
+
+    // Migratie: 'vandaag' en 'gepind' bestaan niet meer als weergave-optie, dat zijn nu
+    // losse filters. Een oude opgeslagen voorkeur wordt omgezet, niet stilzwijgend genegeerd.
+    if(viewMode === 'vandaag'){ viewMode = 'alfabetisch'; filterToday = true; }
+    if(viewMode === 'gepind'){ viewMode = 'alfabetisch'; filterPinned = true; }
 
     if(await migrate()){
       await saveExercises();
@@ -604,12 +633,14 @@
 
   async function savePrefs(){
     try{
-      await window.storage.set(STORAGE_KEY_PREFS, JSON.stringify({viewMode, rangeMode, customFrom}));
+      await window.storage.set(STORAGE_KEY_PREFS, JSON.stringify({viewMode, rangeMode, customFrom, filterToday, filterPinned}));
     }catch(e){ console.error('voorkeuren opslaan mislukt', e); }
   }
 
   function syncControls(){
     document.getElementById('view-mode').value = viewMode;
+    document.getElementById('filter-today').checked = filterToday;
+    document.getElementById('filter-pinned').checked = filterPinned;
     document.getElementById('range-mode').value = rangeMode;
     document.getElementById('range-from').value = customFrom;
     document.getElementById('custom-range-wrap').style.display = rangeMode === 'custom' ? 'flex' : 'none';
@@ -955,19 +986,36 @@
       return;
     }
 
-    if(viewMode === 'gepind'){
-      const pinned = exercises.filter(e => e.pinned).sort(byName);
-      if(pinned.length === 0){
+    // Sterretje is een harde filter: die geldt vóór elke weergave, ongeacht welke.
+    let base = exercises;
+    if(filterPinned){
+      base = base.filter(e => e.pinned);
+      if(base.length === 0){
         list.innerHTML = '<div class="empty">Nog geen oefeningen met een sterretje. Tik op een ster om er een vast te zetten.</div>';
         return;
       }
-      pinned.forEach(ex => list.appendChild(buildCard(ex)));
-    }else if(viewMode === 'spiergroep'){
+    }
+
+    // Vandaag is geen filter maar een sorteer/markeer-modifier: nog-niet-gedaan komt
+    // vooraan (binnen elke groep/weergave apart) en krijgt de ✓ vandaag-markering,
+    // maar niets wordt verborgen. withTodaySort() wikkelt dat vóór de bestaande
+    // sorteerlogica van een weergave, zodat elke weergave 'm kan combineren.
+    const markToday = filterToday;
+    function withTodaySort(cmp){
+      if(!markToday) return cmp;
+      return (a, b) => {
+        const da = doneToday(a.id) ? 1 : 0, db = doneToday(b.id) ? 1 : 0;
+        if(da !== db) return da - db;
+        return cmp(a, b);
+      };
+    }
+
+    if(viewMode === 'spiergroep'){
       // Binnen een spiergroep-indeling zou "gepind naar boven" de groepering juist
       // stukmaken, dus daar blijft de oefening in zijn eigen groep staan (het gele
-      // sterretje blijft natuurlijk zichtbaar).
+      // sterretje blijft natuurlijk zichtbaar). Vandaag sorteert wél binnen elke groep.
       const groups = {};
-      exercises.forEach(e => {
+      base.forEach(e => {
         const cat = muscleCat(e);
         (groups[cat] = groups[cat] || []).push(e);
       });
@@ -977,37 +1025,32 @@
         h.className = 'group-header';
         h.textContent = cat;
         list.appendChild(h);
-        groups[cat].sort(byName).forEach(ex => list.appendChild(buildCard(ex)));
+        groups[cat].sort(withTodaySort(byName)).forEach(ex => list.appendChild(buildCard(ex, markToday)));
       });
     }else if(viewMode === 'boven' || viewMode === 'onder'){
       const allowed = viewMode === 'boven' ? SPLIT_UPPER : SPLIT_LOWER;
-      const filtered = exercises.filter(e => allowed.includes(muscleCat(e)));
+      const filtered = base.filter(e => allowed.includes(muscleCat(e)));
       if(filtered.length === 0){
         list.innerHTML = `<div class="empty">Nog geen oefeningen bij ${viewMode === 'boven' ? 'bovenlichaam' : 'onderlichaam'}.</div>`;
         return;
       }
-      filtered.sort(byPinnedThenName).forEach(ex => list.appendChild(buildCard(ex)));
+      filtered.sort(withTodaySort(byPinnedThenName)).forEach(ex => list.appendChild(buildCard(ex, markToday)));
     }else if(viewMode === 'laatst'){
       // Oudste laatste-sessie eerst (nog nooit gedaan telt als "oudst", dus helemaal
       // bovenaan) zodat je in één oogopslag ziet wat allang niet meer aan de beurt is
       // geweest. Bewust GEEN sterretjes-voorrang hier: dat zou de hele bedoeling van
-      // deze weergave (achterstand zien) juist verdoezelen.
-      const sorted = [...exercises].sort((a, b) => {
+      // deze weergave (achterstand zien) juist verdoezelen. Vandaag laat deze volgorde
+      // met opzet ongemoeid (een net gelogde oefening staat toch al onderaan) en voegt
+      // alleen de ✓-markering toe.
+      const sorted = [...base].sort((a, b) => {
         const da = latestLog(a.id), db = latestLog(b.id);
         const ka = da ? da.date : '', kb = db ? db.date : '';
         if(ka !== kb) return ka.localeCompare(kb);
         return byName(a, b);
       });
-      sorted.forEach(ex => list.appendChild(buildCard(ex)));
-    }else if(viewMode === 'vandaag'){
-      const sorted = [...exercises].sort((a, b) => {
-        const da = doneToday(a.id) ? 1 : 0, db = doneToday(b.id) ? 1 : 0;
-        if(da !== db) return da - db;
-        return byPinnedThenName(a, b);
-      });
-      sorted.forEach(ex => list.appendChild(buildCard(ex, true)));
+      sorted.forEach(ex => list.appendChild(buildCard(ex, markToday)));
     }else{
-      [...exercises].sort(byPinnedThenName).forEach(ex => list.appendChild(buildCard(ex)));
+      [...base].sort(withTodaySort(byPinnedThenName)).forEach(ex => list.appendChild(buildCard(ex, markToday)));
     }
 
     exercises.forEach(ex => {
@@ -1305,6 +1348,18 @@
 
   document.getElementById('view-mode').addEventListener('change', async (e) => {
     viewMode = e.target.value;
+    await savePrefs();
+    render();
+  });
+
+  document.getElementById('filter-today').addEventListener('change', async (e) => {
+    filterToday = e.target.checked;
+    await savePrefs();
+    render();
+  });
+
+  document.getElementById('filter-pinned').addEventListener('change', async (e) => {
+    filterPinned = e.target.checked;
     await savePrefs();
     render();
   });
