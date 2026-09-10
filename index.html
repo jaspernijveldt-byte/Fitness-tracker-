@@ -709,6 +709,21 @@
   async function migrate(){
     let changed = false;
 
+    // Zelfherstellend, WEL bij elke load (in tegenstelling tot de eenmalige stappen
+    // hieronder): een oefening zonder geldige `name` (bv. ontstaan doordat een
+    // correctie-import per ongeluk als eerste liep en zo'n object met alleen id/block
+    // aanmaakte, zoals in cyclus 14 gebeurde) laat anders de hele sortering — en dus de
+    // hele lijst — crashen. Zo'n object krijgt hier een zichtbare placeholder-naam terug
+    // in plaats van dat het stilzwijgend verwijderd wordt: Jasper ziet 'm dan gewoon
+    // terug als kaart en kan zelf beslissen (aanvullen of met de bestaande
+    // verwijder-knop weghalen) in plaats van dat er ongevraagd data verdwijnt.
+    exercises.forEach(e => {
+      if(typeof e.name !== 'string' || !e.name.trim()){
+        e.name = '(naamloze oefening — controleer instellingen)';
+        changed = true;
+      }
+    });
+
     // Eenmalig, niet bij elke load: anders komt een bewust verwijderde standaardoefening
     // (bijv. Jasper haalde 'Calf raise' weg omdat hij 'Seated Calf' gebruikt) na een
     // refresh steeds weer terug als een zombie-entry.
@@ -1016,8 +1031,14 @@
     el.style.display = 'flex';
   }
 
+  // Nooit rechtstreeks op a.name/b.name vertrouwen: één oefening zonder geldige naam
+  // (bv. een import die per ongeluk een onvolledig object aanmaakte) mag nooit de hele
+  // sortering — en dus de hele lijst — laten crashen. migrate() repareert zulke
+  // oefeningen ook actief, maar deze guard is de laatste vangrail.
   function byName(a, b){
-    return a.name.localeCompare(b.name, 'nl', {sensitivity:'base'});
+    const na = (a && typeof a.name === 'string') ? a.name : '';
+    const nb = (b && typeof b.name === 'string') ? b.name : '';
+    return na.localeCompare(nb, 'nl', {sensitivity:'base'});
   }
 
   // Gepinde oefeningen eerst, daarbinnen alfabetisch.
@@ -1073,7 +1094,11 @@
       const inBlock = base.filter(e => e.block === blockFilter);
       if(inBlock.length === 0){
         const label = BLOCK_NAMES[blockFilter] || ('Blok ' + blockFilter);
-        list.innerHTML = `<div class="empty">Nog geen oefeningen in blok ${blockFilter} — ${escapeHtml(label)}.</div>`;
+        // Dit lege scherm blijft ook na een herlaad staan (de blok-keuze zit in de
+        // opgeslagen voorkeuren) — zonder een duidelijke uitweg hier lijkt de hele app
+        // leeg terwijl alle data gewoon nog bestaat. Daarom altijd een directe knop terug
+        // naar "Alle blokken", niet alleen de tekstuele uitleg.
+        list.innerHTML = `<div class="empty">Nog geen oefeningen in blok ${blockFilter} — ${escapeHtml(label)}.<br><button class="ghost" style="margin-top:10px;" data-reset-block-filter>← Alle oefeningen tonen</button></div>`;
         return;
       }
       inBlock.sort(withTodaySort((a, b) => (a.blockOrder ?? 999) - (b.blockOrder ?? 999)))
@@ -1309,6 +1334,14 @@
   }
 
   document.getElementById('list').addEventListener('click', async (e) => {
+    const resetBlockBtn = e.target.closest('[data-reset-block-filter]');
+    if(resetBlockBtn){
+      blockFilter = null;
+      document.getElementById('block-filter').value = '';
+      await savePrefs();
+      render();
+      return;
+    }
     // Sterretje eerst afhandelen: de knop zit binnen de klikbare kaartkop, dus
     // zonder deze check zou het openklappen van de kaart de pin-actie opslokken.
     const pinBtn = e.target.closest('[data-pin]');
