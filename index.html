@@ -73,12 +73,12 @@
   body{
     font-family:'Inter',system-ui,sans-serif;
     -webkit-font-smoothing:antialiased;
-    padding:20px 16px 60px;
+    padding:14px 16px 60px;
     max-width:720px;
     margin:0 auto;
   }
   h1,h2,h3{font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:0.02em;margin:0;}
-  header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:22px;border-bottom:1px solid var(--border);padding-bottom:16px;}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:12px;}
   header .brand{display:flex;align-items:center;gap:10px;}
   header h1{font-size:28px;font-weight:800;color:var(--text);}
   header .sub{font-size:12px;color:var(--text-dim);margin-top:2px;}
@@ -89,14 +89,14 @@
     background:var(--surface);
     border:1px solid var(--border);
     border-radius:var(--radius);
-    margin-bottom:12px;
+    margin-bottom:8px;
     overflow:hidden;
   }
   .card-head{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:14px 16px;
+    padding:11px 16px;
     cursor:pointer;
     gap:10px;
   }
@@ -137,6 +137,23 @@
     padding:1px 6px;
     font-size:11px;
     color:var(--text-dim);
+  }
+  /* Bloknummer als klein rondje i.p.v. een pil zoals machine-tag, zodat het zich in de
+     metarij duidelijk onderscheidt als "welk blok" i.p.v. "welke spiergroep". */
+  .block-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:17px;
+    height:17px;
+    border-radius:50%;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    font-size:10px;
+    font-family:var(--font-mono);
+    font-weight:700;
+    color:var(--text-dim);
+    flex-shrink:0;
   }
   .card-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
   .weight-now{font-family:var(--font-mono);font-size:21px;font-weight:700;color:var(--accent);white-space:nowrap;font-variant-numeric:tabular-nums;}
@@ -245,29 +262,30 @@
     border:1px solid var(--border);
     border-left:3px solid var(--accent);
     border-radius:8px;
-    padding:10px 14px;
-    margin-bottom:16px;
+    padding:8px 14px;
+    margin-bottom:12px;
     font-size:13px;
     color:var(--text);
     line-height:1.4;
   }
-  /* Eén rustige regel met de twee bedieningselementen (weergave + progressiebereik),
-     zodat de kop van de app niet volloopt met losse balken. */
+  /* Rustige rij bedieningselementen (weergave, filters, progressiebereik, blok) —
+     spacing bewust krap gehouden zodat een extra dropdown (blok-selectie) niet
+     ten koste gaat van hoeveel kaarten er boven de vouw zichtbaar zijn. */
   .controls{
     display:flex;
-    gap:10px;
+    gap:8px;
     flex-wrap:wrap;
-    margin-bottom:16px;
+    margin-bottom:12px;
     align-items:flex-end;
   }
-  .control{display:flex;flex-direction:column;gap:4px;flex:1;min-width:130px;}
+  .control{display:flex;flex-direction:column;gap:3px;flex:1;min-width:130px;}
   .control label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.03em;}
   .control select,.control input{
     background:var(--surface-2);
     border:1px solid var(--border);
     color:var(--text);
     border-radius:6px;
-    padding:8px 9px;
+    padding:7px 9px;
     font-size:13px;
     font-family:inherit;
     width:100%;
@@ -280,7 +298,7 @@
     background:var(--surface-2);
     border:1px solid var(--border);
     border-radius:6px;
-    padding:8px 10px;
+    padding:7px 10px;
     font-size:13px;
     flex:1;
     cursor:pointer;
@@ -296,7 +314,7 @@
     font-size:12px;
     font-weight:700;
     color:var(--text-dim);
-    margin:18px 0 8px;
+    margin:14px 0 6px;
     padding-bottom:5px;
     border-bottom:1px solid var(--border);
   }
@@ -389,6 +407,10 @@
     <label for="range-from">Vanaf datum</label>
     <input type="date" id="range-from">
   </div>
+  <div class="control">
+    <label for="block-filter">Blokken</label>
+    <select id="block-filter"></select>
+  </div>
 </div>
 
 <div id="list"></div>
@@ -475,6 +497,16 @@
   const SPLIT_UPPER = ['borst','rug','schouders','armen','buik','overig'];
   const SPLIT_LOWER = ['benen','overig'];
 
+  // Trainingsblokken: rotatieschema (2-4 niet-concurrerende oefeningen na elkaar, 3 ronden)
+  // i.p.v. klassiek 3x8-op-één-oefening. Namenlijst bewust hardcoded voor v1, geen los
+  // bewerkbaar formuliertje (nog geen prioriteit) — bij een nieuw bloknummer zonder naam
+  // hieronder valt de dropdown terug op "Blok N". Blok 0 (Nek) is cyclus 14 weer uitgezet
+  // (dus geen keuze meer in de dropdown/instellingen) — oefeningen die nog ex.block === 0
+  // hebben staan blijven gewoon bestaan, worden alleen nergens als blok getoond.
+  const BLOCK_NAMES = {
+    1:'Druk-trek-core A', 2:'Druk-trek-core B', 3:'Schouders', 4:'Armen', 5:'Benen (donderdag)',
+  };
+
   // Vaste categorieën (dropdown) zijn de bron van waarheid voor sortering/groepering
   // en focus-tip: robuust, geen typefouten of taalverschillen die de indeling stilletjes
   // laten mislukken. Het losse 'muscleGroup'-label (bv. 'hamstrings', 'quadriceps/bilspieren')
@@ -512,6 +544,15 @@
     const detail = (ex.muscleGroup || '').trim();
     if(!detail || detail.toLowerCase() === catLabel.toLowerCase()) return catLabel;
     return catLabel + ' · ' + detail;
+  }
+
+  // Klein rondje met het bloknummer in de metarij, zodat je ook in de gewone (niet
+  // blok-gefilterde) weergave in één oogopslag ziet welk blok een oefening heeft — alleen
+  // zichtbaar als er een blok is ingesteld, dus geen ruis voor oefeningen zonder blok.
+  // Een oefening met ex.block === 0 (uitgezet blok, zie BLOCK_NAMES) toont bewust niets.
+  function blockBadge(ex){
+    if(ex.block == null || !BLOCK_NAMES[ex.block]) return '';
+    return `<span class="block-badge" title="Blok ${ex.block} — ${escapeHtml(BLOCK_NAMES[ex.block])}">${ex.block}</span>`;
   }
 
   // Link naar een uitlegvideo: een handmatig gekozen YouTube-link (uit instellingen of
@@ -585,6 +626,7 @@
   let customFrom = '';
   let filterToday = false;
   let filterPinned = false;
+  let blockFilter = null;
 
   function setStatus(msg){
     document.getElementById('status').textContent = msg;
@@ -617,6 +659,7 @@
       if(p.customFrom) customFrom = p.customFrom;
       if(typeof p.filterToday === 'boolean') filterToday = p.filterToday;
       if(typeof p.filterPinned === 'boolean') filterPinned = p.filterPinned;
+      if(p.blockFilter != null && p.blockFilter !== '') blockFilter = parseInt(p.blockFilter);
     }catch(e){ /* nog geen voorkeuren opgeslagen, standaardwaarden blijven staan */ }
 
     // Migratie: 'vandaag' en 'gepind' bestaan niet meer als weergave-optie, dat zijn nu
@@ -633,8 +676,18 @@
 
   async function savePrefs(){
     try{
-      await window.storage.set(STORAGE_KEY_PREFS, JSON.stringify({viewMode, rangeMode, customFrom, filterToday, filterPinned}));
+      await window.storage.set(STORAGE_KEY_PREFS, JSON.stringify({viewMode, rangeMode, customFrom, filterToday, filterPinned, blockFilter}));
     }catch(e){ console.error('voorkeuren opslaan mislukt', e); }
+  }
+
+  // Blok-dropdown-opties komen uit de vaste BLOCK_NAMES-lijst, niet uit wat er toevallig
+  // al aan oefeningen is toegewezen — zo staat "Blok 3 — Schouders" er ook al vóór de
+  // eerste oefening eraan hangt.
+  function renderBlockOptions(){
+    const sel = document.getElementById('block-filter');
+    const nums = Object.keys(BLOCK_NAMES).map(Number).sort((a, b) => a - b);
+    sel.innerHTML = '<option value="">Alle blokken</option>' +
+      nums.map(n => `<option value="${n}">Blok ${n} — ${escapeHtml(BLOCK_NAMES[n])}</option>`).join('');
   }
 
   function syncControls(){
@@ -644,6 +697,8 @@
     document.getElementById('range-mode').value = rangeMode;
     document.getElementById('range-from').value = customFrom;
     document.getElementById('custom-range-wrap').style.display = rangeMode === 'custom' ? 'flex' : 'none';
+    renderBlockOptions();
+    document.getElementById('block-filter').value = blockFilter != null ? String(blockFilter) : '';
   }
 
   // Eenmalige/idempotente opschoning voor een AL bestaande installatie (data staat al in
@@ -1010,6 +1065,25 @@
       };
     }
 
+    // Een blok gekozen: dit vervangt de normale weergave/sortering volledig, want het
+    // hele punt is een vaste rotatie-volgorde (blockOrder) zien, niet alfabetisch of per
+    // spiergroep. Blijft combineerbaar met Sterretje (al verwerkt in `base`) en Vandaag
+    // (alleen de ✓-markering, de volgorde staat al vast via blockOrder).
+    if(blockFilter != null){
+      const inBlock = base.filter(e => e.block === blockFilter);
+      if(inBlock.length === 0){
+        const label = BLOCK_NAMES[blockFilter] || ('Blok ' + blockFilter);
+        list.innerHTML = `<div class="empty">Nog geen oefeningen in blok ${blockFilter} — ${escapeHtml(label)}.</div>`;
+        return;
+      }
+      inBlock.sort(withTodaySort((a, b) => (a.blockOrder ?? 999) - (b.blockOrder ?? 999)))
+        .forEach(ex => list.appendChild(buildCard(ex, markToday)));
+      exercises.forEach(ex => {
+        if(openCards[ex.id] && document.getElementById('chart-' + ex.id)) renderChart(ex.id);
+      });
+      return;
+    }
+
     if(viewMode === 'spiergroep'){
       // Binnen een spiergroep-indeling zou "gepind naar boven" de groepering juist
       // stukmaken, dus daar blijft de oefening in zijn eigen groep staan (het gele
@@ -1084,6 +1158,7 @@
             <div class="meta">
               ${isDone ? '<span class="done-mark last-date">✓ vandaag</span>' : (last ? `<span class="last-date">${fmtDate(last.date)}</span>` : '<span class="last-date">geen sessies</span>')}
               <span class="machine-tag">${escapeHtml(categoryPillText(ex))}</span>
+              ${blockBadge(ex)}
               ${progressMeta}
             </div>
             <div class="plate-bar"><div class="plate-bar-fill" style="width:${barPct}%"></div></div>
@@ -1124,6 +1199,13 @@
               <input type="checkbox" id="cfg-assisted-${ex.id}" style="width:auto;" ${ex.isAssisted ? 'checked' : ''}>
               <label style="text-transform:none;font-size:12px;">Assisted (minder gewicht = beter)</label>
             </div>
+            <div class="field"><label>Blok</label>
+              <select id="cfg-block-${ex.id}">
+                <option value="">Geen</option>
+                ${Object.keys(BLOCK_NAMES).map(Number).sort((a,b)=>a-b).map(n => `<option value="${n}" ${ex.block === n ? 'selected' : ''}>Blok ${n} — ${escapeHtml(BLOCK_NAMES[n])}</option>`).join('')}
+              </select>
+            </div>
+            <div class="field"><label>Volgorde in blok</label><input type="number" min="1" id="cfg-blockorder-${ex.id}" value="${ex.blockOrder != null ? ex.blockOrder : ''}"></div>
             <button class="ghost" data-save-cfg="${ex.id}" style="align-self:flex-end;">Bewaar instellingen</button>
           </div>
         </div></div>
@@ -1293,6 +1375,10 @@
       const targetRaw = document.getElementById('cfg-target-' + id).value;
       ex.targetWeight = targetRaw !== '' ? parseFloat(targetRaw) : null;
       ex.isAssisted = document.getElementById('cfg-assisted-' + id).checked;
+      const blockRaw = document.getElementById('cfg-block-' + id).value;
+      ex.block = blockRaw !== '' ? parseInt(blockRaw) : null;
+      const blockOrderRaw = document.getElementById('cfg-blockorder-' + id).value;
+      ex.blockOrder = blockOrderRaw !== '' ? parseInt(blockOrderRaw) : null;
       await saveExercises();
       render();
       openCards[id] = true;
@@ -1360,6 +1446,12 @@
 
   document.getElementById('filter-pinned').addEventListener('change', async (e) => {
     filterPinned = e.target.checked;
+    await savePrefs();
+    render();
+  });
+
+  document.getElementById('block-filter').addEventListener('change', async (e) => {
+    blockFilter = e.target.value === '' ? null : parseInt(e.target.value);
     await savePrefs();
     render();
   });
