@@ -105,30 +105,7 @@
   .name-row{display:flex;align-items:center;gap:7px;min-width:0;}
   .card-title .name{font-size:16px;font-weight:700;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:0.01em;}
 
-  /* Sterretje: prioriteit-markering. Ruime tikzone (min. 32px) voor gebruik met
-     zweethanden in de gym, maar visueel klein zodat het de naam niet overstemt. */
-  .star{
-    background:none;
-    border:none;
-    padding:0;
-    width:24px;
-    height:24px;
-    flex-shrink:0;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:17px;
-    line-height:1;
-    color:var(--border);
-    cursor:pointer;
-    transition:color 160ms var(--ease-out), transform 160ms var(--ease-out);
-  }
-  .star.on{color:var(--star);}
-  .star:active{transform:scale(0.85);}
-  @media (hover:hover) and (pointer:fine){
-    .star:hover{color:var(--star);border-color:transparent;}
-  }
-  .card-title .meta{font-size:12px;color:var(--text-dim);display:flex;gap:8px;flex-wrap:wrap;}
+  .card-title .meta{font-size:12px;color:var(--text-dim);display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
   .last-date{color:var(--text);font-weight:600;}
   .machine-tag{
     background:var(--surface-2);
@@ -138,9 +115,12 @@
     font-size:11px;
     color:var(--text-dim);
   }
-  /* Bloknummer als klein rondje i.p.v. een pil zoals machine-tag, zodat het zich in de
-     metarij duidelijk onderscheidt als "welk blok" i.p.v. "welke spiergroep". */
-  .block-badge{
+  /* Workout-lidmaatschap als kleine rondjes i.p.v. een pil zoals machine-tag, zodat het
+     zich in de metarij duidelijk onderscheidt als "in welke workout(s)" i.p.v. "welke
+     spiergroep". Een oefening kan in meerdere workouts tegelijk zitten, dus meerdere
+     badges naast elkaar (zie workoutBadges()). */
+  .workout-badges{display:inline-flex;gap:3px;flex-shrink:0;}
+  .workout-badge{
     display:inline-flex;
     align-items:center;
     justify-content:center;
@@ -155,9 +135,18 @@
     color:var(--text-dim);
     flex-shrink:0;
   }
-  /* Sleep-handvat voor het herordenen van blockOrder (cyclus 16). Onzichtbaar buiten een
-     blok-weergave (geen enkele andere weergave heeft een handmatige volgorde om te
-     herordenen) — zo blijft de kaart in alle andere weergaves exact zoals hij was. */
+  .optional-badge{
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    border-radius:5px;
+    padding:1px 6px;
+    font-size:11px;
+    color:var(--info);
+  }
+  /* Sleep-handvat voor het herordenen binnen een workout. Onzichtbaar buiten een
+     workout-weergave met precies 1 geselecteerde workout (geen enkele andere weergave
+     heeft een handmatige volgorde om te herordenen) — zo blijft de kaart in alle andere
+     weergaves exact zoals hij was. */
   .drag-handle{
     display:none;
     align-items:center;
@@ -175,7 +164,7 @@
     touch-action:none;
     user-select:none;
   }
-  #list[data-mode="block"] .drag-handle{display:flex;}
+  #list[data-mode="workout"] .drag-handle{display:flex;}
   .exercise-card.dragging{border-color:var(--accent);opacity:0.92;}
   .card-right{display:flex;align-items:center;gap:10px;flex-shrink:0;}
   .weight-now{font-family:var(--font-mono);font-size:21px;font-weight:700;color:var(--accent);white-space:nowrap;font-variant-numeric:tabular-nums;}
@@ -402,8 +391,6 @@
     <select id="view-mode">
       <option value="alfabetisch">Alfabetisch</option>
       <option value="spiergroep">Spiergroep</option>
-      <option value="boven">Bovenlichaam</option>
-      <option value="onder">Onderlichaam</option>
       <option value="laatst">Laatst gedaan</option>
     </select>
   </div>
@@ -411,7 +398,6 @@
     <label>Filters</label>
     <div class="filter-toggles">
       <label class="filter-toggle"><input type="checkbox" id="filter-today"> Vandaag</label>
-      <label class="filter-toggle"><input type="checkbox" id="filter-pinned"> Sterretje</label>
     </div>
   </div>
   <div class="control">
@@ -429,9 +415,9 @@
     <label for="range-from">Vanaf datum</label>
     <input type="date" id="range-from">
   </div>
-  <div class="control">
-    <label for="block-filter">Blokken</label>
-    <select id="block-filter"></select>
+  <div class="control" id="workout-filter-control">
+    <label for="workout-filter">Workout</label>
+    <select id="workout-filter"></select>
   </div>
 </div>
 
@@ -513,41 +499,82 @@
     benen:'Benen', buik:'Buik', overig:'Overig',
   };
 
-  // Bovenlichaam/onderlichaam-splitsing voor de "boven"/"onder"-weergave. Afgeleid uit de
-  // vaste muscleCategory, dus geen los tagveld nodig. 'overig' hoort bij geen van beide en
-  // wordt daarom in allebei getoond, zodat er nooit stilletjes een oefening verdwijnt.
-  const SPLIT_UPPER = ['borst','rug','schouders','armen','buik','overig'];
-  const SPLIT_LOWER = ['benen','overig'];
-
-  // Trainingsblokken: rotatieschema (2-4 niet-concurrerende oefeningen na elkaar, 3 ronden)
-  // i.p.v. klassiek 3x8-op-één-oefening. Namenlijst bewust hardcoded voor v1, geen los
-  // bewerkbaar formuliertje (nog geen prioriteit) — bij een nieuw bloknummer zonder naam
-  // hieronder valt de dropdown terug op "Blok N". Blok 0 (Nek) is cyclus 14 weer uitgezet
-  // (dus geen keuze meer in de dropdown/instellingen) — oefeningen die nog ex.block === 0
-  // hebben staan blijven gewoon bestaan, worden alleen nergens als blok getoond.
-  const BLOCK_NAMES = {
-    1:'Druk-trek-core A', 2:'Druk-trek-core B', 3:'Schouders', 4:'Armen', 5:'Benen (donderdag)',
-  };
-
-  // Dinsdag/vrijdag-circuit (cyclus 16) — uiteindelijke vorm, na twee eerdere tussenstappen:
-  // eerst blok 6 geprobeerd (bleek blok 1-4 leeg te trekken, zelfde oefeningen), toen een
-  // aparte "Dinsdag/Vrijdag"-weergave (functioneel goed, maar Jasper wees terecht terug dat
-  // een extra weergave-optie niet nodig was: "stel ik zet gewoon alleen bovenlichaam aan,
-  // dan kan ik de volgorde gewoon aanpassen. Dat is makkelijker dan een nieuwe weergave").
-  // Klopt: Bovenlichaam + Sterretje combineren al tot precies zijn circuit-oefeningen, dus
-  // er is geen eigen weergave-optie nodig — alleen het slepen moest toegevoegd worden AAN
-  // de bestaande Bovenlichaam-weergave (`viewMode === 'boven'`, zie render()). Volgorde zit
-  // in het losse veld `upperOrder` (ongesleepte oefeningen vallen terug op de bestaande
-  // ster-dan-naam-sortering, net als vóór dit alles). Geen apart lidmaatschapsveld nodig:
-  // de Bovenlichaam-weergave zelf bepaalt al wie er staat (via SPLIT_UPPER), Sterretje erbij
-  // aanzetten is aan Jasper zelf, niet iets wat de app afdwingt.
-  // Jasper vroeg daarna of slepen door de hele app zou moeten kunnen — bewust NIET overal:
-  // Spiergroep werkt met groepskoppen (een handmatige volgorde zou de groepsgrenzen
-  // doorkruisen) en Laatst gedaan is per definitie data-gedreven (achterstand zien), geen
-  // keuze om te overschrijven. Onderlichaam is wel symmetrisch met Bovenlichaam en kreeg
-  // z'n eigen `lowerOrder`-veld op exact dezelfde manier. Alfabetisch/Spiergroep/Laatst
-  // gedaan blijven bewust ongemoeid — Jasper bevestigde dat expliciet ("de andere staan
-  // namelijk op alfabetische volgorde").
+  // Cyclus 18: het hele blokken- (route-door-de-zaal) en sterretjessysteem (pinned +
+  // Bovenlichaam/Onderlichaam met upperOrder/lowerOrder) is vervangen door Workouts. Een
+  // workout is geen spiergroep- of route-indeling meer, maar letterlijk "wat ik die dag
+  // doe": Workout A (bovenlichaam, di/vr), Workout B (boven- én onderlichaam, zo), Workout
+  // C (thuisoefeningen met kabel/gewichten/kettlebells/bank) en Workout Extra (oefeningen
+  // voor als er tijd over is). Belangrijk verschil met het oude blokkensysteem: een
+  // oefening mag in MEERDERE workouts tegelijk zitten (bv. Face Pull zit in zowel A, B als
+  // C) — dus geen los veld op de oefening zelf, maar een eigen volgorde-lijst per workout
+  // (zie `workouts`/STORAGE_KEY_WORKOUTS). Jasper selecteert in de Workouts-filter één of
+  // meer workouts tegelijk (checkboxes, geen dropdown); de app toont dan de unie van hun
+  // oefeningen in workout-volgorde, gededupliceerd op oefening (een oefening die in meer
+  // dan één geselecteerde workout zit, toont maar één keer — met de order/sets/optioneel
+  // van de eerst geselecteerde workout waar hij in zit).
+  //
+  // DEFAULT_WORKOUTS is de eenmalige seed-waarde (en het startpunt voor Jaspers eigen
+  // indeling van 11 okt 2026); de workouts zelf wonen voortaan in `workouts` (opgeslagen
+  // onder STORAGE_KEY_WORKOUTS), dus ze gaan mee in export/import net als bloknamen dat
+  // deden. Per item in een workout kan Jasper optioneel een eigen `sets`-aantal instellen
+  // (anders geldt gewoon ex.targetSets) en een `optional`-vlag ("alleen als er tijd is") —
+  // dezelfde oefening kan in de ene workout optioneel zijn en in de andere niet (zie
+  // Overhead Triceps Extension: optioneel in A, vast in B).
+  const DEFAULT_WORKOUTS = [
+    { id:'a', name:'Workout A', items:[
+      {exerciseId:'incline-dumbbell-barbell-press-1786880210018', order:1, sets:2, optional:false},
+      {exerciseId:'dumbell-shrugs-1790324698716', order:2, sets:4, optional:false},
+      {exerciseId:'machine-incline-press-1789628835064', order:3, sets:2, optional:false},
+      {exerciseId:'chest-press', order:4, sets:2, optional:false},
+      {exerciseId:'diverging-lat-pulldown', order:5, sets:null, optional:false},
+      {exerciseId:'chest-supported-row-machine-1790067583476', order:6, sets:null, optional:false},
+      {exerciseId:'pull-ups-lat-pulldowns-1786880240121', order:7, sets:null, optional:false},
+      {exerciseId:'dip-assist-1789027133205', order:8, sets:null, optional:false},
+      {exerciseId:'diverging-seated-row-1791458521252', order:9, sets:null, optional:false},
+      {exerciseId:'arm-curl-machine-1789633132350', order:10, sets:null, optional:false},
+      {exerciseId:'cable-lateral-raise-1788694436711', order:11, sets:4, optional:false},
+      {exerciseId:'face-pull-1787498107514', order:12, sets:null, optional:false},
+      {exerciseId:'overhead-triceps-extension-1791129817650', order:13, sets:null, optional:true},
+    ]},
+    { id:'b', name:'Workout B', items:[
+      {exerciseId:'incline-dumbbell-barbell-press-1786880210018', order:1, sets:2, optional:false},
+      {exerciseId:'dumbell-shrugs-1790324698716', order:2, sets:4, optional:false},
+      {exerciseId:'machine-incline-press-1789628835064', order:3, sets:2, optional:false},
+      {exerciseId:'chest-press', order:4, sets:2, optional:false},
+      {exerciseId:'diverging-lat-pulldown', order:5, sets:null, optional:false},
+      {exerciseId:'chest-supported-row-machine-1790067583476', order:6, sets:null, optional:false},
+      {exerciseId:'pull-ups-lat-pulldowns-1786880240121', order:7, sets:null, optional:false},
+      {exerciseId:'dip-assist-1789027133205', order:8, sets:null, optional:false},
+      {exerciseId:'diverging-seated-row-1791458521252', order:9, sets:null, optional:false},
+      {exerciseId:'arm-curl-machine-1789633132350', order:10, sets:null, optional:false},
+      {exerciseId:'cable-lateral-raise-1788694436711', order:11, sets:4, optional:false},
+      {exerciseId:'face-pull-1787498107514', order:12, sets:null, optional:false},
+      {exerciseId:'overhead-triceps-extension-1791129817650', order:13, sets:null, optional:false},
+      {exerciseId:'romanian-deadlift-dumbell-1789715687136', order:14, sets:null, optional:false},
+      {exerciseId:'leg-press-1791457811528', order:15, sets:null, optional:false},
+      {exerciseId:'calf-raise', order:16, sets:null, optional:false},
+      {exerciseId:'hip-adduction-1786348209470', order:17, sets:null, optional:false},
+      {exerciseId:'prone-leg-curl-1790688945286', order:18, sets:null, optional:false},
+      {exerciseId:'cable-crunches-1786880272364', order:19, sets:null, optional:false},
+      {exerciseId:'pallof-press-1787498133718', order:20, sets:null, optional:false},
+    ]},
+    { id:'c', name:'Workout C', items:[
+      {exerciseId:'nekflexie-1789100000001', order:1, sets:2, optional:false},
+      {exerciseId:'nekextensie-1789100000002', order:2, sets:2, optional:false},
+      {exerciseId:'cable-lateral-raise-1788694436711', order:3, sets:4, optional:false},
+      {exerciseId:'face-pull-1787498107514', order:4, sets:null, optional:false},
+      {exerciseId:'dumbell-shrugs-1790324698716', order:5, sets:4, optional:false},
+      {exerciseId:'dumbell-curl-1791278084602', order:6, sets:null, optional:false},
+      {exerciseId:'overhead-triceps-extension-1791129817650', order:7, sets:null, optional:false},
+    ]},
+    { id:'extra', name:'Workout Extra', items:[
+      {exerciseId:'pec-fly-1786349375090', order:1, sets:null, optional:false},
+      {exerciseId:'shoulder-press', order:2, sets:null, optional:false},
+      {exerciseId:'seated-leg-curl-1786879911413', order:3, sets:null, optional:false},
+      {exerciseId:'leg-extension', order:4, sets:null, optional:false},
+      {exerciseId:'hip-abduction-1786347975521', order:5, sets:null, optional:false},
+    ]},
+  ];
 
   // Vaste categorieën (dropdown) zijn de bron van waarheid voor sortering/groepering
   // en focus-tip: robuust, geen typefouten of taalverschillen die de indeling stilletjes
@@ -588,13 +615,20 @@
     return catLabel + ' · ' + detail;
   }
 
-  // Klein rondje met het bloknummer in de metarij, zodat je ook in de gewone (niet
-  // blok-gefilterde) weergave in één oogopslag ziet welk blok een oefening heeft — alleen
-  // zichtbaar als er een blok is ingesteld, dus geen ruis voor oefeningen zonder blok.
-  // Een oefening met ex.block === 0 (uitgezet blok, zie BLOCK_NAMES) toont bewust niets.
-  function blockBadge(ex){
-    if(ex.block == null || !BLOCK_NAMES[ex.block]) return '';
-    return `<span class="block-badge" title="Blok ${ex.block} — ${escapeHtml(BLOCK_NAMES[ex.block])}">${ex.block}</span>`;
+  // Kleine rondjes met de workout-letter(s) in de metarij, zodat je ook in de gewone (niet
+  // workout-gefilterde) weergave in één oogopslag ziet in welke workout(s) een oefening
+  // zit — een oefening kan in meerdere workouts tegelijk voorkomen, dus desnoods meerdere
+  // badges naast elkaar. Geen badge voor een oefening die nergens bij hoort (nog in de
+  // bibliotheek, nog niet toegewezen).
+  function workoutShortLabel(w){
+    return w.id.charAt(0).toUpperCase();
+  }
+  function workoutBadges(ex){
+    const member = workouts.filter(w => w.items.some(it => it.exerciseId === ex.id));
+    if(!member.length) return '';
+    return '<span class="workout-badges">' + member.map(w =>
+      `<span class="workout-badge" title="${escapeHtml(w.name)}">${workoutShortLabel(w)}</span>`
+    ).join('') + '</span>';
   }
 
   // Link naar een uitlegvideo: een handmatig gekozen YouTube-link (uit instellingen of
@@ -658,17 +692,18 @@
   }
 
   const STORAGE_KEY_PREFS = 'basicfit-prefs-v1';
+  const STORAGE_KEY_WORKOUTS = 'basicfit-workouts-v1';
 
   let exercises = [];
   let logs = [];
+  let workouts = [];
   let openCards = {};
   let charts = {};
   let viewMode = 'alfabetisch';
   let rangeMode = 'all';
   let customFrom = '';
   let filterToday = false;
-  let filterPinned = false;
-  let blockFilter = null;
+  let workoutFilter = ''; // '' = geen workout geselecteerd, anders een workout-id (precies 1, zoals de oude blokken-dropdown)
 
   function setStatus(msg){
     document.getElementById('status').textContent = msg;
@@ -693,6 +728,20 @@
       await saveLogs();
     }
 
+    // Workouts: eigen opslagsleutel, los van exercises/logs, zodat ze meegaan in een
+    // export/import zonder de rest van het datamodel te raken (zie DEFAULT_WORKOUTS
+    // hierboven). Nog geen eigen sleutel gezien (eerste load na deze update, of een
+    // verse installatie) → seeden met Jaspers startindeling en meteen opslaan, net
+    // als exercises/logs hierboven.
+    try{
+      const wkRes = await window.storage.get(STORAGE_KEY_WORKOUTS);
+      workouts = wkRes ? JSON.parse(wkRes.value) : null;
+    }catch(e){ workouts = null; }
+    if(!workouts){
+      workouts = DEFAULT_WORKOUTS.map(w => ({...w, items: w.items.map(it => ({...it}))}));
+      await saveWorkouts();
+    }
+
     try{
       const prefRes = await window.storage.get(STORAGE_KEY_PREFS);
       const p = JSON.parse(prefRes.value);
@@ -700,14 +749,18 @@
       if(p.rangeMode) rangeMode = p.rangeMode;
       if(p.customFrom) customFrom = p.customFrom;
       if(typeof p.filterToday === 'boolean') filterToday = p.filterToday;
-      if(typeof p.filterPinned === 'boolean') filterPinned = p.filterPinned;
-      if(p.blockFilter != null && p.blockFilter !== '') blockFilter = parseInt(p.blockFilter);
+      if(typeof p.workoutFilter === 'string') workoutFilter = p.workoutFilter;
+      // Terugval voor wie v24 al even open heeft gehad: toen was dit tijdelijk een array
+      // (meerdere workouts tegelijk selecteren). Simpelweg de eerste nemen zodat niemand
+      // met een kapotte voorkeur vastloopt.
+      else if(Array.isArray(p.workoutFilter) && p.workoutFilter.length > 0 && typeof p.workoutFilter[0] === 'string') workoutFilter = p.workoutFilter[0];
     }catch(e){ /* nog geen voorkeuren opgeslagen, standaardwaarden blijven staan */ }
 
-    // Migratie: 'vandaag' en 'gepind' bestaan niet meer als weergave-optie, dat zijn nu
-    // losse filters. Een oude opgeslagen voorkeur wordt omgezet, niet stilzwijgend genegeerd.
+    // Migratie: 'vandaag' bestaat niet meer als weergave-optie, dat is nu een losse filter.
+    // 'gepind', 'boven' en 'onder' bestaan sinds cyclus 18 helemaal niet meer (vervangen door
+    // Workouts) — een oude opgeslagen voorkeur valt terug op Alfabetisch i.p.v. stil te breken.
     if(viewMode === 'vandaag'){ viewMode = 'alfabetisch'; filterToday = true; }
-    if(viewMode === 'gepind'){ viewMode = 'alfabetisch'; filterPinned = true; }
+    if(viewMode === 'gepind' || viewMode === 'boven' || viewMode === 'onder'){ viewMode = 'alfabetisch'; }
 
     if(await migrate()){
       await saveExercises();
@@ -718,29 +771,28 @@
 
   async function savePrefs(){
     try{
-      await window.storage.set(STORAGE_KEY_PREFS, JSON.stringify({viewMode, rangeMode, customFrom, filterToday, filterPinned, blockFilter}));
+      await window.storage.set(STORAGE_KEY_PREFS, JSON.stringify({viewMode, rangeMode, customFrom, filterToday, workoutFilter}));
     }catch(e){ console.error('voorkeuren opslaan mislukt', e); }
   }
 
-  // Blok-dropdown-opties komen uit de vaste BLOCK_NAMES-lijst, niet uit wat er toevallig
-  // al aan oefeningen is toegewezen — zo staat "Blok 3 — Schouders" er ook al vóór de
-  // eerste oefening eraan hangt.
-  function renderBlockOptions(){
-    const sel = document.getElementById('block-filter');
-    const nums = Object.keys(BLOCK_NAMES).map(Number).sort((a, b) => a - b);
-    sel.innerHTML = '<option value="">Alle blokken</option>' +
-      nums.map(n => `<option value="${n}">Blok ${n} — ${escapeHtml(BLOCK_NAMES[n])}</option>`).join('');
+  // Workout-dropdown-opties komen uit de opgeslagen workouts-lijst (in hun eigen volgorde),
+  // niet uit wat er toevallig al aan oefeningen is toegewezen — zo staat "Workout C" er ook
+  // al vóór de eerste oefening eraan hangt. Precies zoals de oude blokken-dropdown: één
+  // workout tegelijk kiezen, geen combineren.
+  function renderWorkoutFilterOptions(){
+    const sel = document.getElementById('workout-filter');
+    sel.innerHTML = '<option value="">Alle oefeningen</option>' +
+      workouts.map(w => `<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('');
   }
 
   function syncControls(){
     document.getElementById('view-mode').value = viewMode;
     document.getElementById('filter-today').checked = filterToday;
-    document.getElementById('filter-pinned').checked = filterPinned;
     document.getElementById('range-mode').value = rangeMode;
     document.getElementById('range-from').value = customFrom;
     document.getElementById('custom-range-wrap').style.display = rangeMode === 'custom' ? 'flex' : 'none';
-    renderBlockOptions();
-    document.getElementById('block-filter').value = blockFilter != null ? String(blockFilter) : '';
+    renderWorkoutFilterOptions();
+    document.getElementById('workout-filter').value = workoutFilter;
   }
 
   // Eenmalige/idempotente opschoning voor een AL bestaande installatie (data staat al in
@@ -823,6 +875,25 @@
       await window.storage.set('basicfit-migration-reps8-v1', 'done');
     }
 
+    // Eenmalig (cyclus 18): het oude blokken-/sterretjessysteem (block, blockOrder,
+    // pinned, upperOrder, lowerOrder) is vervangen door Workouts. Deze velden op de
+    // oefeningen zelf zijn overbodig geworden — workout-lidmaatschap en -volgorde wonen
+    // voortaan in `workouts` (zie DEFAULT_WORKOUTS), niet meer op de oefening. Actief
+    // verwijderen i.p.v. laten hangen, zodat een nieuwe export er niet mee rondsleept.
+    let workoutsMigrated = false;
+    try{
+      const flag = await window.storage.get('basicfit-migration-workouts-v1');
+      workoutsMigrated = flag.value === 'done';
+    }catch(e){ workoutsMigrated = false; }
+    if(!workoutsMigrated){
+      exercises.forEach(e => {
+        ['block','blockOrder','pinned','upperOrder','lowerOrder'].forEach(key => {
+          if(key in e){ delete e[key]; changed = true; }
+        });
+      });
+      await window.storage.set('basicfit-migration-workouts-v1', 'done');
+    }
+
     return changed;
   }
 
@@ -834,6 +905,11 @@
   async function saveLogs(){
     try{
       await window.storage.set(STORAGE_KEY_LOGS, JSON.stringify(logs));
+    }catch(e){ console.error('opslaan mislukt', e); setStatus('opslaan mislukt'); }
+  }
+  async function saveWorkouts(){
+    try{
+      await window.storage.set(STORAGE_KEY_WORKOUTS, JSON.stringify(workouts));
     }catch(e){ console.error('opslaan mislukt', e); setStatus('opslaan mislukt'); }
   }
 
@@ -874,7 +950,40 @@
       else newLogs.push(imp);
     });
 
-    return { errors, newExercises, updatedExercises, unchangedExercises, newLogs, skippedLogs };
+    // Workouts zijn optioneel in een importbestand (oudere exports hebben dit veld niet).
+    // Zelfde merge-only principe als exercises: per workout-id alleen items toevoegen of
+    // bijwerken die in het bestand staan; een item dat lokaal al bestaat maar niet in het
+    // bestand voorkomt blijft gewoon staan (import verwijdert nooit workout-lidmaatschap —
+    // dat kan alleen handmatig in de app, via het bewerk-paneel van een oefening).
+    const { newWorkouts, updatedWorkouts } = buildWorkoutChanges(data.workouts);
+
+    return { errors, newExercises, updatedExercises, unchangedExercises, newLogs, skippedLogs, newWorkouts, updatedWorkouts };
+  }
+
+  function buildWorkoutChanges(importedWorkouts){
+    const newWorkouts = [];
+    const updatedWorkouts = [];
+    if(Array.isArray(importedWorkouts)){
+      importedWorkouts.forEach(iw => {
+        if(!iw || !iw.id || !Array.isArray(iw.items)) return;
+        const current = workouts.find(w => w.id === iw.id);
+        if(!current){ newWorkouts.push(iw); return; }
+        const nameChanged = !!(iw.name && iw.name !== current.name);
+        const addedItems = [];
+        const updatedItems = [];
+        iw.items.forEach(ii => {
+          if(!ii || !ii.exerciseId) return;
+          const curItem = current.items.find(x => x.exerciseId === ii.exerciseId);
+          if(!curItem){ addedItems.push(ii); return; }
+          const changedKeys = ['order','sets','optional'].filter(k => JSON.stringify(ii[k]) !== JSON.stringify(curItem[k]));
+          if(changedKeys.length) updatedItems.push({ exerciseId: ii.exerciseId, changedKeys, imp: ii });
+        });
+        if(nameChanged || addedItems.length || updatedItems.length){
+          updatedWorkouts.push({ id: iw.id, oldName: current.name, newName: iw.name, nameChanged, addedItems, updatedItems });
+        }
+      });
+    }
+    return { newWorkouts, updatedWorkouts };
   }
 
   function applyImportPlan(plan){
@@ -884,6 +993,17 @@
       if(current) Object.assign(current, u.imp);
     });
     plan.newLogs.forEach(imp => logs.push({...imp}));
+    plan.newWorkouts.forEach(w => workouts.push({...w, items: w.items.map(it => ({...it}))}));
+    plan.updatedWorkouts.forEach(u => {
+      const w = workouts.find(x => x.id === u.id);
+      if(!w) return;
+      if(u.nameChanged) w.name = u.newName;
+      u.addedItems.forEach(ii => w.items.push({...ii}));
+      u.updatedItems.forEach(ui => {
+        const item = w.items.find(x => x.exerciseId === ui.exerciseId);
+        if(item) Object.assign(item, ui.imp);
+      });
+    });
   }
 
   function describeImportPlan(plan){
@@ -892,6 +1012,12 @@
     if(plan.updatedExercises.length) lines.push(plan.updatedExercises.length + ' oefening(en) bijgewerkt: ' + plan.updatedExercises.map(u => u.name + ' (' + u.changedKeys.join(', ') + ')').join('; '));
     if(plan.newLogs.length) lines.push(plan.newLogs.length + ' nieuwe sessie(s) toegevoegd.');
     if(plan.skippedLogs) lines.push(plan.skippedLogs + ' sessie(s) al aanwezig, overgeslagen.');
+    if(plan.newWorkouts.length) lines.push(plan.newWorkouts.length + ' nieuwe workout(s): ' + plan.newWorkouts.map(w => w.name).join(', '));
+    if(plan.updatedWorkouts.length) lines.push(plan.updatedWorkouts.length + ' workout(s) bijgewerkt: ' + plan.updatedWorkouts.map(u =>
+      u.newName + (u.nameChanged ? ' (naam: ' + u.oldName + ' → ' + u.newName + ')' : '')
+      + (u.addedItems.length ? ', ' + u.addedItems.length + ' oefening(en) toegevoegd' : '')
+      + (u.updatedItems.length ? ', ' + u.updatedItems.length + ' oefening(en) bijgewerkt' : '')
+    ).join('; '));
     if(!lines.length) lines.push('Niets nieuws of gewijzigd gevonden in dit bestand.');
     lines.push('Er wordt niets verwijderd.');
     return lines.join('\n');
@@ -1083,13 +1209,6 @@
     return na.localeCompare(nb, 'nl', {sensitivity:'base'});
   }
 
-  // Gepinde oefeningen eerst, daarbinnen alfabetisch.
-  function byPinnedThenName(a, b){
-    const pa = a.pinned ? 0 : 1, pb = b.pinned ? 0 : 1;
-    if(pa !== pb) return pa - pb;
-    return byName(a, b);
-  }
-
   function doneToday(exId){
     const t = todayStr();
     return logsFor(exId).some(l => l.date === t);
@@ -1105,15 +1224,7 @@
       return;
     }
 
-    // Sterretje is een harde filter: die geldt vóór elke weergave, ongeacht welke.
-    let base = exercises;
-    if(filterPinned){
-      base = base.filter(e => e.pinned);
-      if(base.length === 0){
-        list.innerHTML = '<div class="empty">Nog geen oefeningen met een sterretje. Tik op een ster om er een vast te zetten.</div>';
-        return;
-      }
-    }
+    const base = exercises;
 
     // Vandaag is geen filter maar een sorteer/markeer-modifier: nog-niet-gedaan komt
     // vooraan (binnen elke groep/weergave apart) en krijgt de ✓ vandaag-markering,
@@ -1129,36 +1240,40 @@
       };
     }
 
-    // Een blok gekozen: dit vervangt de normale weergave/sortering volledig, want het
-    // hele punt is een vaste rotatie-volgorde (blockOrder) zien, niet alfabetisch of per
-    // spiergroep. Blijft combineerbaar met Sterretje (al verwerkt in `base`) en Vandaag
-    // (alleen de ✓-markering, de volgorde staat al vast via blockOrder).
-    if(blockFilter != null){
-      const inBlock = base.filter(e => e.block === blockFilter);
-      if(inBlock.length === 0){
-        const label = BLOCK_NAMES[blockFilter] || ('Blok ' + blockFilter);
-        // Dit lege scherm blijft ook na een herlaad staan (de blok-keuze zit in de
-        // opgeslagen voorkeuren) — zonder een duidelijke uitweg hier lijkt de hele app
-        // leeg terwijl alle data gewoon nog bestaat. Daarom altijd een directe knop terug
-        // naar "Alle blokken", niet alleen de tekstuele uitleg.
-        list.innerHTML = `<div class="empty">Nog geen oefeningen in blok ${blockFilter} — ${escapeHtml(label)}.<br><button class="ghost" style="margin-top:10px;" data-reset-block-filter>← Alle oefeningen tonen</button></div>`;
+    // Eén workout geselecteerd (dropdown, net als de oude blokken-dropdown): dit vervangt
+    // de normale weergave/sortering volledig, want het hele punt is een vaste volgorde per
+    // workout zien, niet alfabetisch of per spiergroep.
+    if(workoutFilter){
+      const w = workouts.find(x => x.id === workoutFilter);
+      if(w){
+        const entries = [...w.items]
+          .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+          .map(it => ({ ex: base.find(e => e.id === it.exerciseId), item: it }))
+          .filter(entry => entry.ex); // oefening verwijderd, maar nog als lid in de workout — defensief overslaan
+        if(entries.length === 0){
+          // Dit lege scherm blijft ook na een herlaad staan (de workout-keuze zit in de
+          // opgeslagen voorkeuren) — zonder een duidelijke uitweg hier lijkt de hele app
+          // leeg terwijl alle data gewoon nog bestaat. Daarom altijd een directe knop terug
+          // naar "geen workout", niet alleen de tekstuele uitleg.
+          list.innerHTML = `<div class="empty">Nog geen oefeningen in ${escapeHtml(w.name)}.<br><button class="ghost" style="margin-top:10px;" data-reset-workout-filter>← Alle oefeningen tonen</button></div>`;
+          return;
+        }
+        // Volgorde ligt al vast via item.order (hierboven); Vandaag tilt hier alleen de
+        // al-gedane oefeningen stabiel naar achteren, net als elders.
+        entries.sort(markToday ? (a, b) => {
+          const da = doneToday(a.ex.id) ? 1 : 0, db = doneToday(b.ex.id) ? 1 : 0;
+          return da - db;
+        } : () => 0);
+        entries.forEach(({ex, item}) => list.appendChild(buildCard(ex, markToday, item)));
+        list.dataset.mode = 'workout';
+        exercises.forEach(ex => {
+          if(openCards[ex.id] && document.getElementById('chart-' + ex.id)) renderChart(ex.id);
+        });
         return;
       }
-      inBlock.sort(withTodaySort((a, b) => (a.blockOrder ?? 999) - (b.blockOrder ?? 999)))
-        .forEach(ex => list.appendChild(buildCard(ex, markToday)));
-      // Alleen in een blok- of circuit-weergave bestaat er een handmatige volgorde om te
-      // herordenen — dus alleen dan worden de sleep-handvatten zichtbaar (zie CSS).
-      list.dataset.mode = 'block';
-      exercises.forEach(ex => {
-        if(openCards[ex.id] && document.getElementById('chart-' + ex.id)) renderChart(ex.id);
-      });
-      return;
     }
 
     if(viewMode === 'spiergroep'){
-      // Binnen een spiergroep-indeling zou "gepind naar boven" de groepering juist
-      // stukmaken, dus daar blijft de oefening in zijn eigen groep staan (het gele
-      // sterretje blijft natuurlijk zichtbaar). Vandaag sorteert wél binnen elke groep.
       const groups = {};
       base.forEach(e => {
         const cat = muscleCat(e);
@@ -1170,45 +1285,22 @@
         h.className = 'group-header';
         h.textContent = cat;
         list.appendChild(h);
-        groups[cat].sort(withTodaySort(byName)).forEach(ex => list.appendChild(buildCard(ex, markToday)));
+        groups[cat].sort(withTodaySort(byName)).forEach(ex => list.appendChild(buildCard(ex, markToday, null)));
       });
-    }else if(viewMode === 'boven' || viewMode === 'onder'){
-      const allowed = viewMode === 'boven' ? SPLIT_UPPER : SPLIT_LOWER;
-      const filtered = base.filter(e => allowed.includes(muscleCat(e)));
-      if(filtered.length === 0){
-        list.innerHTML = `<div class="empty">Nog geen oefeningen bij ${viewMode === 'boven' ? 'bovenlichaam' : 'onderlichaam'}.</div>`;
-        return;
-      }
-      // Cyclus 16: Bovenlichaam én Onderlichaam zijn allebei handmatig herordenbaar
-      // (`upperOrder`/`lowerOrder`, los van blockOrder — dit zijn geen blokken). De
-      // andere weergaves (Alfabetisch, Spiergroep, Laatst gedaan) blijven bewust op hun
-      // vaste sortering — Jasper wilde dit expliciet alleen hier, niet overal. Combineer
-      // met Sterretje om precies Jaspers di/vr-circuit te zien binnen Bovenlichaam; zonder
-      // Sterretje toont dit gewoon alle oefeningen in die lichaamshelft, ook herordenbaar.
-      // Nog niet gesleepte oefeningen vallen terug op de oude ster-dan-naam-sortering,
-      // niet weg uit beeld.
-      const orderField = viewMode === 'boven' ? 'upperOrder' : 'lowerOrder';
-      filtered.sort(withTodaySort((a, b) => (a[orderField] ?? 999) - (b[orderField] ?? 999) || byPinnedThenName(a, b)))
-        .forEach(ex => list.appendChild(buildCard(ex, markToday)));
-      // Alleen hier (en in een blok-weergave) bestaat een handmatige volgorde om te
-      // herordenen — dus alleen dan worden de sleep-handvatten zichtbaar (zie CSS).
-      list.dataset.mode = 'block';
     }else if(viewMode === 'laatst'){
       // Oudste laatste-sessie eerst (nog nooit gedaan telt als "oudst", dus helemaal
       // bovenaan) zodat je in één oogopslag ziet wat allang niet meer aan de beurt is
-      // geweest. Bewust GEEN sterretjes-voorrang hier: dat zou de hele bedoeling van
-      // deze weergave (achterstand zien) juist verdoezelen. Vandaag laat deze volgorde
-      // met opzet ongemoeid (een net gelogde oefening staat toch al onderaan) en voegt
-      // alleen de ✓-markering toe.
+      // geweest. Vandaag laat deze volgorde met opzet ongemoeid (een net gelogde
+      // oefening staat toch al onderaan) en voegt alleen de ✓-markering toe.
       const sorted = [...base].sort((a, b) => {
         const da = latestLog(a.id), db = latestLog(b.id);
         const ka = da ? da.date : '', kb = db ? db.date : '';
         if(ka !== kb) return ka.localeCompare(kb);
         return byName(a, b);
       });
-      sorted.forEach(ex => list.appendChild(buildCard(ex, markToday)));
+      sorted.forEach(ex => list.appendChild(buildCard(ex, markToday, null)));
     }else{
-      [...base].sort(withTodaySort(byPinnedThenName)).forEach(ex => list.appendChild(buildCard(ex, markToday)));
+      [...base].sort(withTodaySort(byName)).forEach(ex => list.appendChild(buildCard(ex, markToday, null)));
     }
 
     exercises.forEach(ex => {
@@ -1216,7 +1308,7 @@
     });
   }
 
-  function buildCard(ex, markToday){
+  function buildCard(ex, markToday, workoutItem){
       const card = document.createElement('div');
       const isDone = markToday && doneToday(ex.id);
       card.className = 'exercise-card' + (openCards[ex.id] ? ' open' : '') + (isDone ? ' done-today' : '');
@@ -1237,13 +1329,13 @@
           <div class="card-title">
             <div class="name-row">
               <button class="drag-handle" data-drag-handle="${ex.id}" title="Sleep om te herordenen" aria-label="Sleep om te herordenen">⠿</button>
-              <button class="star ${ex.pinned ? 'on' : ''}" data-pin="${ex.id}" title="${ex.pinned ? 'Sterretje weghalen' : 'Sterretje geven'}" aria-label="${ex.pinned ? 'Sterretje weghalen' : 'Sterretje geven'}" aria-pressed="${ex.pinned ? 'true' : 'false'}">★</button>
               <div class="name">${escapeHtml(ex.name)}</div>
             </div>
             <div class="meta">
               ${isDone ? '<span class="done-mark last-date">✓ vandaag</span>' : (last ? `<span class="last-date">${fmtDate(last.date)}</span>` : '<span class="last-date">geen sessies</span>')}
               <span class="machine-tag">${escapeHtml(categoryPillText(ex))}</span>
-              ${blockBadge(ex)}
+              ${workoutBadges(ex)}
+              ${workoutItem && workoutItem.optional ? '<span class="optional-badge">optioneel</span>' : ''}
               ${progressMeta}
             </div>
             <div class="plate-bar"><div class="plate-bar-fill" style="width:${barPct}%"></div></div>
@@ -1261,7 +1353,7 @@
           <div class="row">
             <div class="field"><label>Datum</label><input type="date" id="in-date-${ex.id}" value="${todayStr()}"></div>
             <div class="field"><label>Gewicht (kg)</label><input type="number" step="0.5" id="in-weight-${ex.id}" value="${last ? last.weight : ''}"></div>
-            <div class="field"><label>Sets</label><input type="number" id="in-sets-${ex.id}" value="${ex.targetSets}"></div>
+            <div class="field"><label>Sets</label><input type="number" id="in-sets-${ex.id}" value="${workoutItem && workoutItem.sets != null ? workoutItem.sets : ex.targetSets}"></div>
             <div class="field"><label>Reps</label><input type="number" id="in-reps-${ex.id}" value=""></div>
           </div>
           <div class="actions">
@@ -1284,13 +1376,23 @@
               <input type="checkbox" id="cfg-assisted-${ex.id}" style="width:auto;" ${ex.isAssisted ? 'checked' : ''}>
               <label style="text-transform:none;font-size:12px;">Assisted (minder gewicht = beter)</label>
             </div>
-            <div class="field"><label>Blok</label>
-              <select id="cfg-block-${ex.id}">
-                <option value="">Geen</option>
-                ${Object.keys(BLOCK_NAMES).map(Number).sort((a,b)=>a-b).map(n => `<option value="${n}" ${ex.block === n ? 'selected' : ''}>Blok ${n} — ${escapeHtml(BLOCK_NAMES[n])}</option>`).join('')}
-              </select>
+            <div class="field" style="flex:1 1 100%;min-width:260px;">
+              <label>Workouts</label>
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:2px;">
+                ${workouts.map(w => {
+                  const item = w.items.find(it => it.exerciseId === ex.id);
+                  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <label style="display:flex;align-items:center;gap:5px;min-width:110px;text-transform:none;font-size:13px;">
+                      <input type="checkbox" id="cfg-wk-${w.id}-${ex.id}" style="width:auto;" ${item ? 'checked' : ''}> ${escapeHtml(w.name)}
+                    </label>
+                    <input type="number" id="cfg-wk-sets-${w.id}-${ex.id}" placeholder="sets (${ex.targetSets})" value="${item && item.sets != null ? item.sets : ''}" style="width:90px;">
+                    <label style="display:flex;align-items:center;gap:5px;text-transform:none;font-size:12px;color:var(--text-dim);">
+                      <input type="checkbox" id="cfg-wk-opt-${w.id}-${ex.id}" style="width:auto;" ${item && item.optional ? 'checked' : ''}> optioneel
+                    </label>
+                  </div>`;
+                }).join('')}
+              </div>
             </div>
-            <div class="field"><label>Volgorde in blok</label><input type="number" min="1" id="cfg-blockorder-${ex.id}" value="${ex.blockOrder != null ? ex.blockOrder : ''}"></div>
             <button class="ghost" data-save-cfg="${ex.id}" style="align-self:flex-end;">Bewaar instellingen</button>
           </div>
         </div></div>
@@ -1398,25 +1500,12 @@
     // op een gewone tik — anders zou een tik op het handvat de kaart openklappen omdat
     // het handvat binnen de klikbare card-head (data-toggle) valt.
     if(e.target.closest('[data-drag-handle]')) return;
-    const resetBlockBtn = e.target.closest('[data-reset-block-filter]');
-    if(resetBlockBtn){
-      blockFilter = null;
-      document.getElementById('block-filter').value = '';
+    const resetWorkoutBtn = e.target.closest('[data-reset-workout-filter]');
+    if(resetWorkoutBtn){
+      workoutFilter = '';
+      syncControls();
       await savePrefs();
       render();
-      return;
-    }
-    // Sterretje eerst afhandelen: de knop zit binnen de klikbare kaartkop, dus
-    // zonder deze check zou het openklappen van de kaart de pin-actie opslokken.
-    const pinBtn = e.target.closest('[data-pin]');
-    if(pinBtn){
-      const id = pinBtn.dataset.pin;
-      const ex = exercises.find(x => x.id === id);
-      if(ex){
-        ex.pinned = !ex.pinned;
-        await saveExercises();
-        render();
-      }
       return;
     }
     const toggle = e.target.closest('[data-toggle]');
@@ -1472,11 +1561,40 @@
       const targetRaw = document.getElementById('cfg-target-' + id).value;
       ex.targetWeight = targetRaw !== '' ? parseFloat(targetRaw) : null;
       ex.isAssisted = document.getElementById('cfg-assisted-' + id).checked;
-      const blockRaw = document.getElementById('cfg-block-' + id).value;
-      ex.block = blockRaw !== '' ? parseInt(blockRaw) : null;
-      const blockOrderRaw = document.getElementById('cfg-blockorder-' + id).value;
-      ex.blockOrder = blockOrderRaw !== '' ? parseInt(blockOrderRaw) : null;
+
+      // Workout-lidmaatschap: per workout checken of het vinkje aan staat, en zo ja de
+      // sets-override/optioneel-vlag overnemen. Een oefening toevoegen aan een workout
+      // plakt 'm achteraan (hoogste order + 1); een al bestaand lid behoudt zijn eigen
+      // order (die wijzig je door te slepen, niet hier). Uitvinken verwijdert het
+      // lidmaatschap meteen — dit is directe bewerking in de app, geen import, dus hier
+      // mag (net als vroeger bij Blok) gewoon verwijderd worden.
+      let workoutsChanged = false;
+      workouts.forEach(w => {
+        const checked = document.getElementById(`cfg-wk-${w.id}-${id}`).checked;
+        const existing = w.items.find(it => it.exerciseId === id);
+        const setsRaw = document.getElementById(`cfg-wk-sets-${w.id}-${id}`).value;
+        const sets = setsRaw !== '' ? parseInt(setsRaw) : null;
+        const optional = document.getElementById(`cfg-wk-opt-${w.id}-${id}`).checked;
+        if(checked){
+          if(existing){
+            if(existing.sets !== sets || existing.optional !== optional){
+              existing.sets = sets;
+              existing.optional = optional;
+              workoutsChanged = true;
+            }
+          }else{
+            const maxOrder = w.items.reduce((m, it) => Math.max(m, it.order || 0), 0);
+            w.items.push({ exerciseId: id, order: maxOrder + 1, sets, optional });
+            workoutsChanged = true;
+          }
+        }else if(existing){
+          w.items = w.items.filter(it => it.exerciseId !== id);
+          workoutsChanged = true;
+        }
+      });
+
       await saveExercises();
+      if(workoutsChanged) await saveWorkouts();
       render();
       openCards[id] = true;
       render();
@@ -1506,18 +1624,18 @@
     }
   });
 
-  // Sleep-herordenen binnen een blok-weergave (cyclus 16). Puur met Pointer Events, geen
-  // library: alleen het handvat (⠿) start een drag, zodat de rest van de kaart gewoon
-  // tikbaar blijft om open/dicht te klappen. Jasper koos bewust voor "altijd sleepbaar"
-  // i.p.v. een apart aan/uit-knopje — vandaar dat het handvat zelf de enige vangrail is
-  // tegen een per-ongeluk-drag. Geen zwevende kaart/vertaling tijdens het slepen: de
-  // kaart wisselt direct van plek zodra je over een buur heen sleept (simpeler en net zo
-  // bruikbaar op een telefoonscherm als een vloeiende sleepanimatie).
+  // Sleep-herordenen binnen een workout-weergave (cyclus 16, aangepast in cyclus 18 van
+  // blok/boven-onder naar workouts). Puur met Pointer Events, geen library: alleen het
+  // handvat (⠿) start een drag, zodat de rest van de kaart gewoon tikbaar blijft om
+  // open/dicht te klappen. Alleen zichtbaar/actief als er een workout geselecteerd is
+  // (zie render()) — de dropdown laat toch altijd maar één workout tegelijk kiezen.
+  // Geen zwevende kaart/vertaling tijdens het slepen: de kaart wisselt direct van plek
+  // zodra je over een buur heen sleept.
   let dragState = null;
 
   document.getElementById('list').addEventListener('pointerdown', (e) => {
     const handle = e.target.closest('[data-drag-handle]');
-    if(!handle || (blockFilter == null && viewMode !== 'boven' && viewMode !== 'onder')) return;
+    if(!handle || !workoutFilter) return;
     const card = handle.closest('.exercise-card');
     if(!card) return;
     e.preventDefault();
@@ -1547,24 +1665,19 @@
     dragState.card.classList.remove('dragging');
     const list = document.getElementById('list');
     const orderedIds = Array.from(list.querySelectorAll('.exercise-card')).map(c => c.dataset.exId);
-    // Een blok-keuze overschrijft de weergave altijd (zie render()), dus wat er nu
-    // zichtbaar is/net gesleept is, is alleen Bovenlichaam/Onderlichaam als er ECHT geen
-    // blok actief is — anders zou een sleep binnen een blok-weergave (met viewMode nog op
-    // 'boven'/'onder' van een eerdere keuze) ten onrechte naar upperOrder/lowerOrder
-    // schrijven.
-    const bodyOrderField = blockFilter == null && viewMode === 'boven' ? 'upperOrder'
-      : blockFilter == null && viewMode === 'onder' ? 'lowerOrder' : null;
-    orderedIds.forEach((id, idx) => {
-      const ex = exercises.find(x => x.id === id);
-      if(!ex) return;
-      // Bovenlichaam/Onderlichaam schrijven naar hun eigen losse volgorde-veld, nooit naar
-      // block/blockOrder — anders zou slepen hier per ongeluk een oefening uit zijn
-      // bestaande blok 1-5 trekken.
-      if(bodyOrderField) ex[bodyOrderField] = idx + 1;
-      else if(ex.block === blockFilter) ex.blockOrder = idx + 1;
-    });
     dragState = null;
-    await saveExercises();
+    // Geen workoutFilter kan hier niet gebeuren (pointerdown gate hierboven), maar
+    // defensief toch checken voor het geval de selectie tussentijds wijzigde.
+    if(workoutFilter){
+      const w = workouts.find(x => x.id === workoutFilter);
+      if(w){
+        orderedIds.forEach((id, idx) => {
+          const item = w.items.find(it => it.exerciseId === id);
+          if(item) item.order = idx + 1;
+        });
+        await saveWorkouts();
+      }
+    }
     render();
   }
   document.getElementById('list').addEventListener('pointerup', endDrag);
@@ -1605,14 +1718,8 @@
     render();
   });
 
-  document.getElementById('filter-pinned').addEventListener('change', async (e) => {
-    filterPinned = e.target.checked;
-    await savePrefs();
-    render();
-  });
-
-  document.getElementById('block-filter').addEventListener('change', async (e) => {
-    blockFilter = e.target.value === '' ? null : parseInt(e.target.value);
+  document.getElementById('workout-filter').addEventListener('change', async (e) => {
+    workoutFilter = e.target.value;
     await savePrefs();
     render();
   });
@@ -1642,6 +1749,7 @@
       exportedAt: todayStr(),
       exercises,
       logs,
+      workouts,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1685,8 +1793,11 @@
     applyImportPlan(plan);
     await saveExercises();
     await saveLogs();
+    const workoutsTouched = plan.newWorkouts.length + plan.updatedWorkouts.length;
+    if(workoutsTouched) await saveWorkouts();
+    syncControls();
     render();
-    setStatus('Import verwerkt: ' + plan.newExercises.length + ' nieuw, ' + plan.updatedExercises.length + ' bijgewerkt, ' + plan.newLogs.length + ' sessie(s) toegevoegd.');
+    setStatus('Import verwerkt: ' + plan.newExercises.length + ' nieuw, ' + plan.updatedExercises.length + ' bijgewerkt, ' + plan.newLogs.length + ' sessie(s) toegevoegd' + (workoutsTouched ? ', ' + workoutsTouched + ' workout(s) gewijzigd.' : '.'));
   });
 
   document.getElementById('new-ex-category').innerHTML = categoryOptions('borst');
